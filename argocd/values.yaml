@@ -1,0 +1,25 @@
+# ArgoCD Helm Chart Values Configuration
+# Enforces HTTP-to-HTTPS redirect using Traefik and handles Dex + RBAC mapping.
+
+configs:
+  # General configuration parameters
+  params:
+    server.insecure: "true"
+
+  # ConfigMap configuration (argocd-cm)
+  cm:
+    url: https://argocd.noeg.ai
+    dex.config: |
+      connectors:
+        - type: github
+          id: github
+          name: GitHub
+          config:
+            clientID: $argocd-github-oauth:client-id
+            clientSecret: $argocd-github-oauth:client-secret
+
+  # RBAC configuration (argocd-rbac-cm)
+  rbac:
+    policy.default: ""
+    policy.csv: |
+      g, nagonzalez, role:admin

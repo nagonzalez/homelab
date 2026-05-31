@@ -16,15 +16,23 @@ This homelab is engineered to be lightweight, secure, and reproducible:
 ## 📁 Repository Structure
 
 ```text
+├── .gemini/
+│   └── preferences.md     # Codified AI agent behavior rules and design preferences
 ├── Bakefile               # Central orchestration task runner for the homelab
 ├── init.sh                # Bootstraps modern Bash (v4+) and Kyle Burton's Bake
+├── argocd/
+│   ├── values.yaml        # Helm chart configuration values for ArgoCD
+│   └── ingress-route.yaml # Traefik IngressRoute exposing argocd.noeg.ai
 └── traefik/
     ├── values.yaml        # Helm chart configuration values for Traefik Ingress
     └── tls-store.yaml     # Custom TLSStore resource configuring wildcard SSL certs
 ```
 
+* **[.gemini/preferences.md](file:///Users/mac/Documents/homelab/.gemini/preferences.md):** Stores codified design preferences and architectural constraints for Antigravity AI agents working in this repository (e.g., preference for Helm values over separate manifests).
 * **[init.sh](file:///Users/mac/Documents/homelab/init.sh):** Detects or installs a modern `bash` (v4+), downloads/patches `bake` to utilize it, and checks environment health (e.g., Homebrew directories permissions, Xcode CLI tools).
 * **[Bakefile](file:///Users/mac/Documents/homelab/Bakefile):** Contains automation routines for software installation, SSH key management, and Helm deployments.
+* **[argocd/values.yaml](file:///Users/mac/Documents/homelab/argocd/values.yaml):** Configures ArgoCD server (insecure mode), Dex integration for GitHub OAuth, and access control policies.
+* **[argocd/ingress-route.yaml](file:///Users/mac/Documents/homelab/argocd/ingress-route.yaml):** Exposes ArgoCD UI/API and CLI gRPC traffic securely via Traefik.
 * **[traefik/values.yaml](file:///Users/mac/Documents/homelab/traefik/values.yaml):** Configures HTTP-to-HTTPS redirection, Let's Encrypt integration via Cloudflare API token, persistent ACME storage, and exposes the dashboard at `traefik.noeg.ai`.
 * **[traefik/tls-store.yaml](file:///Users/mac/Documents/homelab/traefik/tls-store.yaml):** Configures Traefik to serve a default wildcard certificate for `*.noeg.ai` and `noeg.ai`.
 
@@ -94,9 +102,31 @@ This task will:
 
 ---
 
+### Step 5: Deploy ArgoCD
+
+To deploy ArgoCD, run the deployment task:
+
+```bash
+bake deploy-argocd
+```
+
+If credentials are not found in Kubernetes or in your environment, the task will automatically open the GitHub application registration page in your browser, output the exact values to use, and prompt you for the Client ID and Client Secret in the terminal.
+
+
+This task will:
+1. Initialize/update the ArgoCD Helm repository.
+2. Create the `argocd` namespace.
+3. Securely provision a Kubernetes secret containing your GitHub credentials.
+4. Install/Upgrade ArgoCD.
+5. Deploy the Traefik IngressRoute allowing access via `argocd.noeg.ai`.
+6. Restart the ArgoCD server/dex pods to ensure configurations apply immediately.
+
+---
+
 ## 🔒 Configuration Details
 
 ### Ingress & SSL
 * **HTTP redirection:** Traefik is configured to redirect all HTTP traffic on port `80` to HTTPS on port `443` automatically.
 * **Persistent Certs:** ACME certificates are stored in `/data/acme.json` backed by a `1Gi` persistent volume claim (`acme-certs`) provisioned by OrbStack's default local-path storage class.
 * **Dashboard Access:** The secure Traefik dashboard is accessible at `https://traefik.noeg.ai/dashboard/`.
+* **ArgoCD Access:** ArgoCD is exposed at `https://argocd.noeg.ai` using Dex GitHub integration with admin rights mapped specifically to user `nagonzalez`. All other logins are restricted by default.

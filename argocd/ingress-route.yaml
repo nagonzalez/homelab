@@ -1,0 +1,25 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Rule for Web UI & API (HTTP)
+    - kind: Rule
+      match: Host(`argocd.noeg.ai`)
+      priority: 10
+      services:
+        - name: argocd-server
+          port: 80
+    # Rule for CLI (gRPC)
+    - kind: Rule
+      match: Host(`argocd.noeg.ai`) && Headers(`Content-Type`, `application/grpc`)
+      priority: 11
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
+  tls: {}

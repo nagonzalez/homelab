@@ -56,6 +56,14 @@ function install () {
             brew install gh
         fi
 
+        # 7. Install argocd CLI (required for verification and cluster management)
+        if command -v argocd &>/dev/null; then
+            bake_echo_blue "i argocd CLI is already installed"
+        else
+            bake_echo_cyan "Installing argocd CLI via Homebrew..."
+            brew install argocd
+        fi
+
         bake_echo_green "✓ All macOS dependencies checked and installed!"
     else
         bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
@@ -161,4 +169,118 @@ function deploy-traefik () {
 
     bake_echo_green "✓ Traefik deployed and TLSStore configured successfully!"
 }
+
+bake_task deploy-argocd "Deploy ArgoCD with GitHub OAuth and Traefik Ingress"
+function deploy-argocd () {
+    bake_echo_blue "=== Deploying ArgoCD ==="
+
+    if ! command -v helm &>/dev/null; then
+        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
+        return 1
+    fi
+
+    # 1. Add repo and update
+    helm repo add argo https://argoproj.github.io/argo-helm
+    helm repo update
+
+    # 2. Create Namespace if it doesn't exist
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+    # Check if the secret already exists in Kubernetes
+    local secret_exists=0
+    if kubectl get secret argocd-github-oauth -n argocd &>/dev/null; then
+        secret_exists=1
+    fi
+
+    local deploy_secret=0
+    if [ "$secret_exists" -eq 0 ]; then
+        deploy_secret=1
+    else
+        # If it exists, check if they provided new env vars to override
+        if [ -n "${ARGOCD_GITHUB_CLIENT_ID:-}" ] && [ -n "${ARGOCD_GITHUB_CLIENT_SECRET:-}" ]; then
+            deploy_secret=1
+        fi
+    fi
+
+    if [ "$deploy_secret" -eq 1 ]; then
+        if [ -z "${ARGOCD_GITHUB_CLIENT_ID:-}" ] || [ -z "${ARGOCD_GITHUB_CLIENT_SECRET:-}" ]; then
+            bake_echo_yellow "No GitHub OAuth credentials found in the environment or Kubernetes."
+            bake_echo_blue "=== Creating GitHub OAuth Application ==="
+            bake_echo_cyan "We will open GitHub settings in your browser."
+            bake_echo_cyan "Please use the following values to register the application:"
+            echo ""
+            echo -e "  Application name:   ArgoCD Homelab"
+            echo -e "  Homepage URL:       https://argocd.noeg.ai"
+            echo -e "  Authorization callback URL: https://argocd.noeg.ai/api/dex/callback"
+            echo ""
+            
+            # Open browser on macOS
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                open "https://github.com/settings/applications/new"
+            fi
+
+            echo -n "Please enter the Client ID: "
+            read -r ARGOCD_GITHUB_CLIENT_ID
+            echo -n "Please enter the Client Secret: "
+            read -s -r ARGOCD_GITHUB_CLIENT_SECRET
+            echo ""
+
+            if [ -z "$ARGOCD_GITHUB_CLIENT_ID" ] || [ -z "$ARGOCD_GITHUB_CLIENT_SECRET" ]; then
+                bake_echo_red "✗ Error: Client ID and Client Secret cannot be empty."
+                return 1
+            fi
+        fi
+
+        # Deploy the GitHub OAuth credentials secret
+        bake_echo_cyan "Creating GitHub OAuth credentials secret..."
+        kubectl create secret generic argocd-github-oauth \
+          --namespace argocd \
+          --from-literal=client-id="$ARGOCD_GITHUB_CLIENT_ID" \
+          --from-literal=client-secret="$ARGOCD_GITHUB_CLIENT_SECRET" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        kubectl label secret argocd-github-oauth app.kubernetes.io/part-of=argocd -n argocd --overwrite
+    else
+        bake_echo_blue "i Using existing GitHub OAuth credentials from secret 'argocd-github-oauth'"
+    fi
+
+    # 4. Deploy ArgoCD via Helm
+    bake_echo_cyan "Deploying ArgoCD Helm release..."
+    helm upgrade --install argocd argo/argo-cd \
+      --namespace argocd \
+      --values "$(bake_bakefile_dir)/argocd/values.yaml"
+
+    # 5. Apply the Traefik IngressRoute
+    bake_echo_cyan "Applying Traefik IngressRoute..."
+    kubectl apply -f "$(bake_bakefile_dir)/argocd/ingress-route.yaml"
+
+    # 6. Restart Server and Dex pods to ensure ConfigMaps are applied immediately
+    bake_echo_cyan "Rolling out restart of ArgoCD pods to apply configurations..."
+    kubectl rollout restart deployment argocd-server -n argocd
+    kubectl rollout restart deployment argocd-dex-server -n argocd
+
+    # 7. Verify connection using argocd CLI
+    if command -v argocd &>/dev/null; then
+        bake_echo_cyan "Verifying connection to argocd.noeg.ai using argocd CLI (with retries)..."
+        # Wait for the rollout to complete before verifying
+        kubectl rollout status deployment/argocd-server -n argocd >/dev/null 2>&1
+        
+        local success=0
+        for i in {1..15}; do
+            if argocd version --server argocd.noeg.ai --grpc-web &>/dev/null; then
+                success=1
+                break
+            fi
+            sleep 2
+        done
+
+        if [ "$success" -eq 1 ]; then
+            bake_echo_green "✓ Connection verified! argocd CLI successfully connected to server."
+        else
+            bake_echo_yellow "⚠ Warning: CLI connection check failed. The server might still be starting, or DNS is not resolved yet."
+        fi
+    fi
+
+    bake_echo_green "✓ ArgoCD deployed successfully! Access it at: https://argocd.noeg.ai"
+}
+
 
