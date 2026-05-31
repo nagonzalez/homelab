@@ -8,3 +8,41 @@ function default () {
     echo "Available tasks:"
     bake_show_all_tasks
 }
+
+bake_task install "Detect OS and install homelab dependencies (starting with OrbStack)"
+function install () {
+    bake_echo_blue "=== Starting Homelab Dependency Installation ==="
+
+    # 1. Detect OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        bake_echo_green "✓ macOS detected"
+
+        # 2. Check for Homebrew
+        if ! command -v brew &>/dev/null; then
+            bake_echo_red "✗ Homebrew is not installed. Please install it first from: https://brew.sh"
+            return 1
+        fi
+
+        # 3. Install OrbStack (Cask)
+        if [ -d "/Applications/OrbStack.app" ]; then
+            bake_echo_blue "i OrbStack is already installed at /Applications/OrbStack.app"
+        else
+            bake_echo_cyan "Installing OrbStack via Homebrew Cask..."
+            brew install --cask orbstack
+        fi
+
+        # 4. Install kubectl (required for k8s management)
+        if command -v kubectl &>/dev/null; then
+            bake_echo_blue "i kubectl is already installed"
+        else
+            bake_echo_cyan "Installing kubectl via Homebrew..."
+            brew install kubectl
+        fi
+
+        bake_echo_green "✓ All macOS dependencies checked and installed!"
+    else
+        bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
+        return 1
+    fi
+}
+
