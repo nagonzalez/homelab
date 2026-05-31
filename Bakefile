@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+
+bake_default_task default
+
+bake_task default "List all available tasks"
+function default () {
+    echo "Available tasks:"
+    bake_show_all_tasks
+}
