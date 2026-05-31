@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+spec:
+  defaultGeneratedCert:
+    # Use the 'cloudflare' resolver defined in values.yaml additionalArguments
+    resolver: cloudflare
+    domain:
+      main: "*.noeg.ai"
+      sans:
+        - "noeg.ai"

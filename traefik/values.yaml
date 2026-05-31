@@ -1,0 +1,51 @@
+# Traefik Helm Chart Values Configuration
+# Enforces HTTP-to-HTTPS redirect and configures ACME Let's Encrypt DNS-01 validation via Cloudflare.
+
+ports:
+  web:
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    http:
+      tls:
+        enabled: true
+
+additionalArguments:
+  - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+  - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+  - "--certificatesresolvers.cloudflare.acme.email=$(CF_ACME_EMAIL)"
+  - "--certificatesresolvers.cloudflare.acme.storage=/data/acme.json"
+  - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+
+
+env:
+  - name: CF_DNS_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-credentials
+        key: CF_DNS_API_TOKEN
+  - name: CF_ACME_EMAIL
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-credentials
+        key: CF_ACME_EMAIL
+
+# Persistence configuration to store LetsEncrypt ACME certs.
+# Rancher local-path provisioner (default in OrbStack) will provision this PVC automatically.
+persistence:
+  enabled: true
+  name: acme-certs
+  path: /data
+  size: 1Gi
+
+# Expose the dashboard using IngressRoute
+ingressRoute:
+  dashboard:
+    enabled: true
+    entryPoints:
+      - websecure
+    matchRule: Host(`traefik.noeg.ai`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))

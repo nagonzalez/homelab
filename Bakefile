@@ -101,3 +101,56 @@ EOF
     cat "${key_file}.pub"
     bake_echo_blue "=================================================================================="
 }
+
+bake_task deploy-traefik "Deploy Traefik Ingress with Cloudflare DNS-01 challenge"
+function deploy-traefik () {
+    bake_echo_blue "=== Deploying Traefik Ingress ==="
+
+    if ! command -v helm &>/dev/null; then
+        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
+        return 1
+    fi
+
+    # Check for required environment variables
+    if [ -z "${CF_DNS_API_TOKEN:-}" ]; then
+        bake_echo_red "✗ Error: CF_DNS_API_TOKEN environment variable is not set."
+        bake_echo_yellow "Please export your Cloudflare API Token (Zone.DNS.Edit permission):"
+        bake_echo_yellow "  export CF_DNS_API_TOKEN=\"your-token\""
+        return 1
+    fi
+
+    if [ -z "${CF_ACME_EMAIL:-}" ]; then
+        bake_echo_red "✗ Error: CF_ACME_EMAIL environment variable is not set."
+        bake_echo_yellow "Please export your Let's Encrypt / Cloudflare email address:"
+        bake_echo_yellow "  export CF_ACME_EMAIL=\"your-email@example.com\""
+        return 1
+    fi
+
+    # 1. Add repo and update
+    helm repo add traefik https://traefik.github.io/charts
+    helm repo update
+
+    # 2. Create Namespace if it doesn't exist
+    kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
+
+    # 3. Deploy the Cloudflare credentials secret
+    bake_echo_cyan "Creating Cloudflare credentials secret..."
+    kubectl create secret generic cloudflare-credentials \
+      --namespace traefik \
+      --from-literal=CF_DNS_API_TOKEN="$CF_DNS_API_TOKEN" \
+      --from-literal=CF_ACME_EMAIL="$CF_ACME_EMAIL" \
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # 4. Deploy Traefik via Helm
+    bake_echo_cyan "Deploying Traefik Helm release..."
+    helm upgrade --install traefik traefik/traefik \
+      --namespace traefik \
+      --values "$(bake_bakefile_dir)/traefik/values.yaml"
+
+    # 5. Apply the TLSStore configuration for the default wildcard certificate
+    bake_echo_cyan "Applying default TLSStore wildcard certificate configuration..."
+    kubectl apply -f "$(bake_bakefile_dir)/traefik/tls-store.yaml"
+
+    bake_echo_green "✓ Traefik deployed and TLSStore configured successfully!"
+}
+
