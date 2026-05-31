@@ -40,6 +40,14 @@ function install () {
             brew link --overwrite --force kubernetes-cli@1.33
         fi
 
+        # 5. Install helm (required for Kubernetes deployments)
+        if command -v helm &>/dev/null; then
+            bake_echo_blue "i helm is already installed"
+        else
+            bake_echo_cyan "Installing helm via Homebrew..."
+            brew install helm
+        fi
+
         bake_echo_green "✓ All macOS dependencies checked and installed!"
     else
         bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
@@ -47,3 +55,49 @@ function install () {
     fi
 }
 
+bake_task setup-ssh "Generate a secure Ed25519 SSH key for GitHub"
+function setup-ssh () {
+    local key_file="$HOME/.ssh/id_ed25519"
+
+    bake_echo_blue "=== Setting Up GitHub SSH Key ==="
+
+    if [ -f "$key_file" ]; then
+        bake_echo_yellow "i SSH key already exists at $key_file"
+    else
+        # Try to get git email, fallback to whoami@hostname
+        local email
+        email=$(git config --global user.email 2>/dev/null || echo "$(whoami)@$(hostname)")
+
+        bake_echo_cyan "Generating Ed25519 SSH key pair with comment: $email..."
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
+
+        # Generate the key (will prompt for passphrase if you want one)
+        ssh-keygen -t ed25519 -C "$email" -f "$key_file"
+    fi
+
+    # Start ssh-agent and add key
+    bake_echo_cyan "Adding key to ssh-agent..."
+    eval "$(ssh-agent -s)"
+
+    # Configure SSH config to automatically load keys and store passphrases in Keychain (macOS standard)
+    local ssh_config="$HOME/.ssh/config"
+    if [ ! -f "$ssh_config" ] || ! grep -q "UseKeychain" "$ssh_config"; then
+        bake_echo_cyan "Configuring $ssh_config for macOS Keychain integration..."
+        cat >> "$ssh_config" <<EOF
+
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile $key_file
+EOF
+        chmod 600 "$ssh_config"
+    fi
+
+    ssh-add --apple-use-keychain "$key_file"
+
+    bake_echo_green "✓ SSH key configuration completed!"
+    bake_echo_blue "=== Copy the public key below and add it to GitHub (https://github.com/settings/keys) ==="
+    cat "${key_file}.pub"
+    bake_echo_blue "=================================================================================="
+}
