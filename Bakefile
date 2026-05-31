@@ -32,11 +32,12 @@ function install () {
         fi
 
         # 4. Install kubectl (required for k8s management)
-        if command -v kubectl &>/dev/null; then
-            bake_echo_blue "i kubectl is already installed"
+        if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "v1.33"; then
+            bake_echo_blue "i kubectl (v1.33) is already installed"
         else
-            bake_echo_cyan "Installing kubectl via Homebrew..."
-            brew install kubectl
+            bake_echo_cyan "Installing kubectl@1.33 via Homebrew..."
+            brew install kubernetes-cli@1.33
+            brew link --overwrite --force kubernetes-cli@1.33
         fi
 
         bake_echo_green "✓ All macOS dependencies checked and installed!"
