@@ -16,7 +16,7 @@ spec:
           port: 80
     # Rule for CLI (gRPC)
     - kind: Rule
-      match: Host(`argocd.noeg.ai`) && Headers(`Content-Type`, `application/grpc`)
+      match: Host(`argocd.noeg.ai`) && Header(`Content-Type`, `application/grpc`)
       priority: 11
       services:
         - name: argocd-server
