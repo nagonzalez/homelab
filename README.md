@@ -22,7 +22,13 @@ This homelab is engineered to be lightweight, secure, and reproducible:
 ├── init.sh                # Bootstraps modern Bash (v4+) and Kyle Burton's Bake
 ├── argocd/
 │   ├── values.yaml        # Helm chart configuration values for ArgoCD
-│   └── ingress-route.yaml # Traefik IngressRoute exposing argocd.noeg.ai
+│   ├── ingress-route.yaml # Traefik IngressRoute exposing argocd.noeg.ai
+│   └── apps/              # ArgoCD Application manifests
+│       └── grafana.yaml   # ArgoCD Application tracking charts/grafana
+├── charts/                # Local Helm wrapper charts
+│   └── grafana/           # Helm wrapper chart for Grafana
+│       ├── Chart.yaml     # Wrapper chart dependency definition
+│       └── values.yaml    # Grafana configuration Helm values
 └── traefik/
     ├── values.yaml        # Helm chart configuration values for Traefik Ingress
     └── tls-store.yaml     # Custom TLSStore resource configuring wildcard SSL certs
@@ -33,6 +39,8 @@ This homelab is engineered to be lightweight, secure, and reproducible:
 * **[Bakefile](file:///Users/mac/Documents/homelab/Bakefile):** Contains automation routines for software installation, SSH key management, and Helm deployments.
 * **[argocd/values.yaml](file:///Users/mac/Documents/homelab/argocd/values.yaml):** Configures ArgoCD server (insecure mode), Dex integration for GitHub OAuth, and access control policies.
 * **[argocd/ingress-route.yaml](file:///Users/mac/Documents/homelab/argocd/ingress-route.yaml):** Exposes ArgoCD UI/API and CLI gRPC traffic securely via Traefik.
+* **[argocd/apps/grafana.yaml](file:///Users/mac/Documents/homelab/argocd/apps/grafana.yaml):** Declares the ArgoCD Application resource that tracks the Git repository.
+* **[charts/grafana/](file:///Users/mac/Documents/homelab/charts/grafana/):** Helm wrapper chart pulling the official Grafana community chart and overlaying local configurations.
 * **[traefik/values.yaml](file:///Users/mac/Documents/homelab/traefik/values.yaml):** Configures HTTP-to-HTTPS redirection, Let's Encrypt integration via Cloudflare API token, persistent ACME storage, and exposes the dashboard at `traefik.noeg.ai`.
 * **[traefik/tls-store.yaml](file:///Users/mac/Documents/homelab/traefik/tls-store.yaml):** Configures Traefik to serve a default wildcard certificate for `*.noeg.ai` and `noeg.ai`.
 
@@ -123,6 +131,35 @@ This task will:
 
 ---
 
+### Step 6: Deploy Grafana
+
+To deploy Grafana via ArgoCD, run the deployment task:
+
+```bash
+bake deploy-grafana
+```
+
+If Grafana OAuth credentials are not found, the task will automatically prompt you to register a new GitHub OAuth App and enter the Client ID and Client Secret.
+
+> [!IMPORTANT]
+> Since ArgoCD pulls configurations directly from GitHub, you must commit and push your local files (e.g. `charts/grafana/` and `argocd/apps/grafana.yaml`) to your repository on GitHub.
+> 
+> To test your changes on a feature branch (e.g. `feat/grafana-deploy`) before merging them into `main`, push to your branch and run:
+> ```bash
+> argocd app set grafana --revision feat/grafana-deploy
+> ```
+> Once verified and merged into `main`, reset the application to track `main`:
+> ```bash
+> argocd app set grafana --revision main
+> ```
+
+This task will:
+1. Create the `monitoring` namespace.
+2. Securely provision the GitHub OAuth secrets for Grafana.
+3. Apply the `grafana.yaml` manifest, prompting ArgoCD to track the `main` branch of this Git repository and deploy the Helm wrapper chart located at `charts/grafana` automatically.
+
+---
+
 ## 🔒 Configuration Details
 
 ### Ingress & SSL
@@ -130,3 +167,4 @@ This task will:
 * **Persistent Certs:** ACME certificates are stored in `/data/acme.json` backed by a `1Gi` persistent volume claim (`acme-certs`) provisioned by OrbStack's default local-path storage class.
 * **Dashboard Access:** The secure Traefik dashboard is accessible at `https://traefik.noeg.ai/dashboard/`.
 * **ArgoCD Access:** ArgoCD is exposed at `https://argocd.noeg.ai` using Dex GitHub integration with admin rights mapped specifically to user `nagonzalez`. All other logins are restricted by default.
+* **Grafana Access:** Grafana is exposed at `https://grafana.noeg.ai` using GitHub OAuth. User `nagonzalez` is granted server-wide `GrafanaAdmin` rights, while all other users are blocked from logging in.
