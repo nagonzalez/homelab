@@ -33,3 +33,7 @@ grafana:
     enabled: true
     type: pvc
     size: 2Gi
+
+  initChownData:
+    enabled: false
+
