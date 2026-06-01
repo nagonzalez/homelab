@@ -1,0 +1,10 @@
+apiVersion: v2
+name: grafana-wrapper
+description: A Helm wrapper chart for deploying Grafana Community chart
+type: application
+version: 1.0.0
+appVersion: "12.4.1"
+dependencies:
+  - name: grafana
+    version: 12.4.1
+    repository: https://grafana-community.github.io/helm-charts

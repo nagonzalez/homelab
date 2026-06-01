@@ -23,3 +23,5 @@ configs:
     policy.default: ""
     policy.csv: |
       g, nagonzalez, role:admin
+      g, noe.a.gonzalez@gmail.com, role:admin
+    scopes: "[groups, email]"

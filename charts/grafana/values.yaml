@@ -1,0 +1,35 @@
+# Grafana Helm Wrapper Chart Configuration
+# Values are nested under the 'grafana' key to target the sub-chart dependency.
+
+grafana:
+  # Load secrets from Kubernetes secret in the monitoring namespace
+  envFromSecret: grafana-github-oauth
+
+  grafana.ini:
+    server:
+      root_url: https://grafana.noeg.ai
+    "auth.github":
+      enabled: true
+      allow_sign_up: true
+      scopes: user:email,read:org
+      auth_url: https://github.com/login/oauth/authorize
+      token_url: https://github.com/login/oauth/access_token
+      api_url: https://api.github.com/user
+      allow_assign_grafana_admin: true
+      role_attribute_strict: true
+      # Enforce login only for the user 'nagonzalez'. Others get role 'None' and are denied login.
+      role_attribute_path: login == 'nagonzalez' && 'GrafanaAdmin' || 'None'
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.noeg.ai
+    tls:
+      - hosts:
+          - grafana.noeg.ai
+
+  persistence:
+    enabled: true
+    type: pvc
+    size: 2Gi

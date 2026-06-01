@@ -283,4 +283,87 @@ function deploy-argocd () {
     bake_echo_green "✓ ArgoCD deployed successfully! Access it at: https://argocd.noeg.ai"
 }
 
+bake_task deploy-grafana "Deploy Grafana via ArgoCD with GitHub OAuth and strict access control"
+function deploy-grafana () {
+    bake_echo_blue "=== Deploying Grafana via ArgoCD ==="
+
+    if ! command -v helm &>/dev/null; then
+        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
+        return 1
+    fi
+
+    # 1. Create monitoring namespace if it doesn't exist
+    kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    # 2. Check if Grafana GitHub credentials secret exists
+    local secret_exists=0
+    if kubectl get secret grafana-github-oauth -n monitoring &>/dev/null; then
+        secret_exists=1
+    fi
+
+    local deploy_secret=0
+    if [ "$secret_exists" -eq 0 ]; then
+        deploy_secret=1
+    else
+        # If it exists, check if new env vars are provided to override
+        if [ -n "${GRAFANA_GITHUB_CLIENT_ID:-}" ] && [ -n "${GRAFANA_GITHUB_CLIENT_SECRET:-}" ]; then
+            deploy_secret=1
+        fi
+    fi
+
+    if [ "$deploy_secret" -eq 1 ]; then
+        if [ -z "${GRAFANA_GITHUB_CLIENT_ID:-}" ] || [ -z "${GRAFANA_GITHUB_CLIENT_SECRET:-}" ]; then
+            bake_echo_yellow "No Grafana GitHub OAuth credentials found in the environment or Kubernetes."
+            bake_echo_blue "=== Creating GitHub OAuth Application for Grafana ==="
+            bake_echo_cyan "We will open GitHub settings in your browser."
+            bake_echo_cyan "Please use the following values to register the application:"
+            echo ""
+            echo -e "  Application name:           Grafana Homelab"
+            echo -e "  Homepage URL:               https://grafana.noeg.ai"
+            echo -e "  Authorization callback URL: https://grafana.noeg.ai/login/github"
+            echo ""
+            
+            # Open browser on macOS
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                open "https://github.com/settings/applications/new"
+            fi
+
+            echo -n "Please enter the Client ID: "
+            read -r GRAFANA_GITHUB_CLIENT_ID
+            echo -n "Please enter the Client Secret: "
+            read -s -r GRAFANA_GITHUB_CLIENT_SECRET
+            echo ""
+
+            if [ -z "$GRAFANA_GITHUB_CLIENT_ID" ] || [ -z "$GRAFANA_GITHUB_CLIENT_SECRET" ]; then
+                bake_echo_red "✗ Error: Client ID and Client Secret cannot be empty."
+                return 1
+            fi
+        fi
+
+        # Deploy the GitHub OAuth credentials secret
+        bake_echo_cyan "Creating Grafana GitHub OAuth credentials secret..."
+        kubectl create secret generic grafana-github-oauth \
+          --namespace monitoring \
+          --from-literal=GF_AUTH_GITHUB_CLIENT_ID="$GRAFANA_GITHUB_CLIENT_ID" \
+          --from-literal=GF_AUTH_GITHUB_CLIENT_SECRET="$GRAFANA_GITHUB_CLIENT_SECRET" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        kubectl label secret grafana-github-oauth app.kubernetes.io/part-of=grafana -n monitoring --overwrite
+    else
+        bake_echo_blue "i Using existing GitHub OAuth credentials from secret 'grafana-github-oauth'"
+    fi
+
+    # 3. Apply the ArgoCD Application manifest for Grafana
+    bake_echo_cyan "Applying Grafana ArgoCD Application..."
+    kubectl apply -f "$(bake_bakefile_dir)/argocd/apps/grafana.yaml"
+
+    bake_echo_green "✓ Grafana deployment initiated successfully via ArgoCD!"
+    bake_echo_yellow "⚠️  IMPORTANT: To test your changes before merging to main, use the ArgoCD CLI revision override:"
+    echo "  1. Push your local files to your feature branch (e.g. feat/grafana-deploy)"
+    echo "  2. Run the override command:   argocd app set grafana --revision feat/grafana-deploy"
+    echo "  3. When verified and merged, reset:  argocd app set grafana --revision main"
+    echo ""
+    bake_echo_blue "Access your Grafana dashboard at: https://grafana.noeg.ai"
+    bake_echo_yellow "Note: Strict access control is enabled. Only user 'nagonzalez' will be allowed to log in."
+}
+
 
