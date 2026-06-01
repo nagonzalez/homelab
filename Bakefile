@@ -366,4 +366,29 @@ function deploy-grafana () {
     bake_echo_yellow "Note: Strict access control is enabled. Only user 'nagonzalez' will be allowed to log in."
 }
 
+bake_task deploy-prometheus "Deploy Prometheus via ArgoCD"
+function deploy-prometheus () {
+    bake_echo_blue "=== Deploying Prometheus via ArgoCD ==="
+
+    if ! command -v helm &>/dev/null; then
+        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
+        return 1
+    fi
+
+    # 1. Create monitoring namespace if it doesn't exist
+    kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    # 2. Apply the ArgoCD Application manifest for Prometheus
+    bake_echo_cyan "Applying Prometheus ArgoCD Application..."
+    kubectl apply -f "$(bake_bakefile_dir)/argocd/apps/prometheus.yaml"
+
+    bake_echo_green "✓ Prometheus deployment initiated successfully via ArgoCD!"
+    bake_echo_yellow "⚠️  IMPORTANT: To test your changes before merging to main, use the ArgoCD CLI revision override:"
+    echo "  1. Push your local files to your feature branch (e.g. feat/prometheus-metrics)"
+    echo "  2. Run the override command:   argocd app set prometheus --revision feat/prometheus-metrics"
+    echo "  3. When verified and merged, reset:  argocd app set prometheus --revision main"
+    echo ""
+}
+
+
 
