@@ -66,5 +66,9 @@ grafana:
         gnetId: 1860
         revision: 37
         datasource: Prometheus
+      traefik:
+        gnetId: 17347
+        revision: 9
+        datasource: Prometheus
 
 
