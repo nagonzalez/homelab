@@ -331,11 +331,42 @@ function install () {
             brew install argocd
         fi
 
+        # 8. Install uv (required for Python/Ansible management)
+        if command -v uv &>/dev/null; then
+            bake_echo_blue "i uv is already installed"
+        else
+            bake_echo_cyan "Installing uv via Homebrew..."
+            brew install uv
+        fi
+
         bake_echo_green "✓ All macOS dependencies checked and installed!"
     else
         bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
         return 1
     fi
+}
+
+bake_task setup-ansible "Bootstrap the Ansible environment using uv"
+function setup-ansible () {
+    bake_echo_blue "=== Setting Up Ansible Environment ==="
+
+    # Ensure dependencies (like uv) are installed
+    install || return 1
+
+    local venv_dir="$(bake_bakefile_dir)/.venv"
+
+    bake_echo_cyan "Installing Python via uv..."
+    uv python install || return 1
+
+    bake_echo_cyan "Creating virtual environment in $venv_dir..."
+    uv venv --allow-existing "$venv_dir" || return 1
+
+    bake_echo_cyan "Installing dependencies from requirements.txt..."
+    uv pip install --python "$venv_dir/bin/python" -r "$(bake_bakefile_dir)/requirements.txt" || return 1
+
+    bake_echo_green "✓ Ansible environment bootstrapped successfully!"
+    bake_echo_blue "To use Ansible, activate the virtual environment:"
+    bake_echo_blue "  source .venv/bin/activate"
 }
 
 bake_task setup-orbstack "Configure OrbStack settings from checked-in configuration"
