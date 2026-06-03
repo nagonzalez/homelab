@@ -295,6 +295,9 @@ function install () {
             brew install --cask orbstack
         fi
 
+        # Configure OrbStack settings
+        setup-orbstack
+
         # 4. Install kubectl (required for k8s management)
         if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "v1.33"; then
             bake_echo_blue "i kubectl (v1.33) is already installed"
@@ -333,6 +336,28 @@ function install () {
         bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
         return 1
     fi
+}
+
+bake_task setup-orbstack "Configure OrbStack settings from checked-in configuration"
+function setup-orbstack () {
+    bake_echo_blue "=== Configuring OrbStack ==="
+
+    local config_file="$(bake_bakefile_dir)/orbstack/vmconfig.json"
+    if [ ! -f "$config_file" ]; then
+        bake_echo_red "✗ OrbStack configuration file not found at $config_file"
+        return 1
+    fi
+
+    bake_echo_cyan "Applying OrbStack settings from $config_file..."
+    
+    # Create ~/.orbstack directory if it doesn't exist
+    mkdir -p "$HOME/.orbstack"
+
+    # Copy the config file to ~/.orbstack/vmconfig.json
+    cp "$config_file" "$HOME/.orbstack/vmconfig.json"
+
+    bake_echo_green "✓ OrbStack configuration applied successfully!"
+    bake_echo_yellow "⚠  Please restart OrbStack ('orb stop' then start it) to apply any changes."
 }
 
 bake_task setup-ssh "Generate a secure Ed25519 SSH key for GitHub"
