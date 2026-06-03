@@ -1,0 +1,7 @@
+{
+  "k8s.enable": true,
+  "k8s.expose_services": true,
+  "memory_mib": 61440,
+  "network_bridge": false,
+  "power.pause_in_sleep": false
+}
