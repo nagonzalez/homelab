@@ -354,13 +354,20 @@ function setup-ansible () {
     install || return 1
 
     local venv_dir="$(bake_bakefile_dir)/.venv"
-    local python_version="3.14"
+    local python_version_file="$(bake_bakefile_dir)/.python-version"
+
+    if [ ! -f "$python_version_file" ]; then
+        bake_echo_red "✗ .python-version file not found at $python_version_file"
+        return 1
+    fi
+    local python_version
+    python_version=$(cat "$python_version_file" | tr -d '[:space:]')
 
     bake_echo_cyan "Installing Python $python_version via uv..."
     uv python install "$python_version" || return 1
 
     bake_echo_cyan "Creating virtual environment in $venv_dir..."
-    uv venv --python "$python_version" "$venv_dir" || return 1
+    uv venv --allow-existing --python "$python_version" "$venv_dir" || return 1
 
     bake_echo_cyan "Installing dependencies from requirements.txt..."
     uv pip install --python "$venv_dir/bin/python" -r "$(bake_bakefile_dir)/requirements.txt" || return 1
