@@ -24,6 +24,9 @@ This directory contains codified rules and preferences for AI agents working in 
   argocd app set <app-name> --revision main
   ```
 
+### 4. Pull Request Review and Merging Workflow
+- **Preference**: When working with git, always create pull requests for changes and wait for the USER to manually review and approve them. Never merge pull requests automatically.
+
 ## 💻 Development & Scripting Preferences
 
 ### 1. Bakefile Task Ordering
