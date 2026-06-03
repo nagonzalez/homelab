@@ -9,175 +9,12 @@ function default () {
     bake_show_all_tasks
 }
 
-bake_task install "Detect OS and install homelab dependencies (starting with OrbStack)"
-function install () {
-    bake_echo_blue "=== Starting Homelab Dependency Installation ==="
-
-    # 1. Detect OS
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        bake_echo_green "✓ macOS detected"
-
-        # 2. Check for Homebrew
-        if ! command -v brew &>/dev/null; then
-            bake_echo_red "✗ Homebrew is not installed. Please install it first from: https://brew.sh"
-            return 1
-        fi
-
-        # 3. Install OrbStack (Cask)
-        if [ -d "/Applications/OrbStack.app" ]; then
-            bake_echo_blue "i OrbStack is already installed at /Applications/OrbStack.app"
-        else
-            bake_echo_cyan "Installing OrbStack via Homebrew Cask..."
-            brew install --cask orbstack
-        fi
-
-        # 4. Install kubectl (required for k8s management)
-        if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "v1.33"; then
-            bake_echo_blue "i kubectl (v1.33) is already installed"
-        else
-            bake_echo_cyan "Installing kubectl@1.33 via Homebrew..."
-            brew install kubernetes-cli@1.33
-            brew link --overwrite --force kubernetes-cli@1.33
-        fi
-
-        # 5. Install helm (required for Kubernetes deployments)
-        if command -v helm &>/dev/null; then
-            bake_echo_blue "i helm is already installed"
-        else
-            bake_echo_cyan "Installing helm via Homebrew..."
-            brew install helm
-        fi
-
-        # 6. Install gh (GitHub CLI, required for GitHub automation)
-        if command -v gh &>/dev/null; then
-            bake_echo_blue "i gh (GitHub CLI) is already installed"
-        else
-            bake_echo_cyan "Installing gh via Homebrew..."
-            brew install gh
-        fi
-
-        # 7. Install argocd CLI (required for verification and cluster management)
-        if command -v argocd &>/dev/null; then
-            bake_echo_blue "i argocd CLI is already installed"
-        else
-            bake_echo_cyan "Installing argocd CLI via Homebrew..."
-            brew install argocd
-        fi
-
-        bake_echo_green "✓ All macOS dependencies checked and installed!"
-    else
-        bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
-        return 1
-    fi
-}
-
-bake_task setup-ssh "Generate a secure Ed25519 SSH key for GitHub"
-function setup-ssh () {
-    local key_file="$HOME/.ssh/id_ed25519"
-
-    bake_echo_blue "=== Setting Up GitHub SSH Key ==="
-
-    if [ -f "$key_file" ]; then
-        bake_echo_yellow "i SSH key already exists at $key_file"
-    else
-        # Try to get git email, fallback to whoami@hostname
-        local email
-        email=$(git config --global user.email 2>/dev/null || echo "$(whoami)@$(hostname)")
-
-        bake_echo_cyan "Generating Ed25519 SSH key pair with comment: $email..."
-        mkdir -p "$HOME/.ssh"
-        chmod 700 "$HOME/.ssh"
-
-        # Generate the key (will prompt for passphrase if you want one)
-        ssh-keygen -t ed25519 -C "$email" -f "$key_file"
-    fi
-
-    # Start ssh-agent and add key
-    bake_echo_cyan "Adding key to ssh-agent..."
-    eval "$(ssh-agent -s)"
-
-    # Configure SSH config to automatically load keys and store passphrases in Keychain (macOS standard)
-    local ssh_config="$HOME/.ssh/config"
-    if [ ! -f "$ssh_config" ] || ! grep -q "UseKeychain" "$ssh_config"; then
-        bake_echo_cyan "Configuring $ssh_config for macOS Keychain integration..."
-        cat >> "$ssh_config" <<EOF
-
-Host github.com
-  AddKeysToAgent yes
-  UseKeychain yes
-  IdentityFile $key_file
-EOF
-        chmod 600 "$ssh_config"
-    fi
-
-    ssh-add --apple-use-keychain "$key_file"
-
-    bake_echo_green "✓ SSH key configuration completed!"
-    bake_echo_blue "=== Copy the public key below and add it to GitHub (https://github.com/settings/keys) ==="
-    cat "${key_file}.pub"
-    bake_echo_blue "=================================================================================="
-}
-
-bake_task deploy-traefik "Deploy Traefik Ingress with Cloudflare DNS-01 challenge"
-function deploy-traefik () {
-    bake_echo_blue "=== Deploying Traefik Ingress ==="
-
-    if ! command -v helm &>/dev/null; then
-        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
-        return 1
-    fi
-
-    # Check for required environment variables
-    if [ -z "${CF_DNS_API_TOKEN:-}" ]; then
-        bake_echo_red "✗ Error: CF_DNS_API_TOKEN environment variable is not set."
-        bake_echo_yellow "Please export your Cloudflare API Token (Zone.DNS.Edit permission):"
-        bake_echo_yellow "  export CF_DNS_API_TOKEN=\"your-token\""
-        return 1
-    fi
-
-    if [ -z "${CF_ACME_EMAIL:-}" ]; then
-        bake_echo_red "✗ Error: CF_ACME_EMAIL environment variable is not set."
-        bake_echo_yellow "Please export your Let's Encrypt / Cloudflare email address:"
-        bake_echo_yellow "  export CF_ACME_EMAIL=\"your-email@example.com\""
-        return 1
-    fi
-
-    # 1. Add repo and update
-    helm repo add traefik https://traefik.github.io/charts
-    helm repo update
-
-    # 2. Create Namespace if it doesn't exist
-    kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
-
-    # 3. Deploy the Cloudflare credentials secret
-    bake_echo_cyan "Creating Cloudflare credentials secret..."
-    kubectl create secret generic cloudflare-credentials \
-      --namespace traefik \
-      --from-literal=CF_DNS_API_TOKEN="$CF_DNS_API_TOKEN" \
-      --from-literal=CF_ACME_EMAIL="$CF_ACME_EMAIL" \
-      --dry-run=client -o yaml | kubectl apply -f -
-
-    # 4. Deploy Traefik via Helm
-    bake_echo_cyan "Deploying Traefik Helm release..."
-    helm upgrade --install traefik traefik/traefik \
-      --namespace traefik \
-      --values "$(bake_bakefile_dir)/traefik/values.yaml"
-
-    # 5. Apply the TLSStore configuration for the default wildcard certificate
-    bake_echo_cyan "Applying default TLSStore wildcard certificate configuration..."
-    kubectl apply -f "$(bake_bakefile_dir)/traefik/tls-store.yaml"
-
-    bake_echo_green "✓ Traefik deployed and TLSStore configured successfully!"
-}
-
 bake_task deploy-argocd "Deploy ArgoCD with GitHub OAuth and Traefik Ingress"
 function deploy-argocd () {
     bake_echo_blue "=== Deploying ArgoCD ==="
 
-    if ! command -v helm &>/dev/null; then
-        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
-        return 1
-    fi
+    # Ensure dependencies are installed
+    install || return 1
 
     # 1. Add repo and update
     helm repo add argo https://argoproj.github.io/argo-helm
@@ -287,10 +124,8 @@ bake_task deploy-grafana "Deploy Grafana via ArgoCD with GitHub OAuth and strict
 function deploy-grafana () {
     bake_echo_blue "=== Deploying Grafana via ArgoCD ==="
 
-    if ! command -v helm &>/dev/null; then
-        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
-        return 1
-    fi
+    # Ensure dependencies are installed
+    install || return 1
 
     # 1. Create monitoring namespace if it doesn't exist
     kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
@@ -370,10 +205,8 @@ bake_task deploy-prometheus "Deploy Prometheus via ArgoCD"
 function deploy-prometheus () {
     bake_echo_blue "=== Deploying Prometheus via ArgoCD ==="
 
-    if ! command -v helm &>/dev/null; then
-        bake_echo_red "✗ Helm is not installed. Run 'bake install' first."
-        return 1
-    fi
+    # Ensure dependencies are installed
+    install || return 1
 
     # 1. Create monitoring namespace if it doesn't exist
     kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
@@ -388,6 +221,165 @@ function deploy-prometheus () {
     echo "  2. Run the override command:   argocd app set prometheus --revision feat/prometheus-metrics"
     echo "  3. When verified and merged, reset:  argocd app set prometheus --revision main"
     echo ""
+}
+
+bake_task deploy-traefik "Deploy Traefik Ingress with Cloudflare DNS-01 challenge"
+function deploy-traefik () {
+    bake_echo_blue "=== Deploying Traefik Ingress ==="
+
+    # Ensure dependencies are installed
+    install || return 1
+
+    # Check for required environment variables
+    if [ -z "${CF_DNS_API_TOKEN:-}" ]; then
+        bake_echo_red "✗ Error: CF_DNS_API_TOKEN environment variable is not set."
+        bake_echo_yellow "Please export your Cloudflare API Token (Zone.DNS.Edit permission):"
+        bake_echo_yellow "  export CF_DNS_API_TOKEN=\"your-token\""
+        return 1
+    fi
+
+    if [ -z "${CF_ACME_EMAIL:-}" ]; then
+        bake_echo_red "✗ Error: CF_ACME_EMAIL environment variable is not set."
+        bake_echo_yellow "Please export your Let's Encrypt / Cloudflare email address:"
+        bake_echo_yellow "  export CF_ACME_EMAIL=\"your-email@example.com\""
+        return 1
+    fi
+
+    # 1. Add repo and update
+    helm repo add traefik https://traefik.github.io/charts
+    helm repo update
+
+    # 2. Create Namespace if it doesn't exist
+    kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
+
+    # 3. Deploy the Cloudflare credentials secret
+    bake_echo_cyan "Creating Cloudflare credentials secret..."
+    kubectl create secret generic cloudflare-credentials \
+      --namespace traefik \
+      --from-literal=CF_DNS_API_TOKEN="$CF_DNS_API_TOKEN" \
+      --from-literal=CF_ACME_EMAIL="$CF_ACME_EMAIL" \
+      --dry-run=client -o yaml | kubectl apply -f -
+
+    # 4. Deploy Traefik via Helm
+    bake_echo_cyan "Deploying Traefik Helm release..."
+    helm upgrade --install traefik traefik/traefik \
+      --namespace traefik \
+      --values "$(bake_bakefile_dir)/traefik/values.yaml"
+
+    # 5. Apply the TLSStore configuration for the default wildcard certificate
+    bake_echo_cyan "Applying default TLSStore wildcard certificate configuration..."
+    kubectl apply -f "$(bake_bakefile_dir)/traefik/tls-store.yaml"
+
+    bake_echo_green "✓ Traefik deployed and TLSStore configured successfully!"
+}
+
+bake_task install "Detect OS and install homelab dependencies (starting with OrbStack)"
+function install () {
+    bake_echo_blue "=== Starting Homelab Dependency Installation ==="
+
+    # 1. Detect OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        bake_echo_green "✓ macOS detected"
+
+        # 2. Check for Homebrew
+        if ! command -v brew &>/dev/null; then
+            bake_echo_red "✗ Homebrew is not installed. Please install it first from: https://brew.sh"
+            return 1
+        fi
+
+        # 3. Install OrbStack (Cask)
+        if [ -d "/Applications/OrbStack.app" ]; then
+            bake_echo_blue "i OrbStack is already installed at /Applications/OrbStack.app"
+        else
+            bake_echo_cyan "Installing OrbStack via Homebrew Cask..."
+            brew install --cask orbstack
+        fi
+
+        # 4. Install kubectl (required for k8s management)
+        if command -v kubectl &>/dev/null && kubectl version --client 2>/dev/null | grep -q "v1.33"; then
+            bake_echo_blue "i kubectl (v1.33) is already installed"
+        else
+            bake_echo_cyan "Installing kubectl@1.33 via Homebrew..."
+            brew install kubernetes-cli@1.33
+            brew link --overwrite --force kubernetes-cli@1.33
+        fi
+
+        # 5. Install helm (required for Kubernetes deployments)
+        if command -v helm &>/dev/null; then
+            bake_echo_blue "i helm is already installed"
+        else
+            bake_echo_cyan "Installing helm via Homebrew..."
+            brew install helm
+        fi
+
+        # 6. Install gh (GitHub CLI, required for GitHub automation)
+        if command -v gh &>/dev/null; then
+            bake_echo_blue "i gh (GitHub CLI) is already installed"
+        else
+            bake_echo_cyan "Installing gh via Homebrew..."
+            brew install gh
+        fi
+
+        # 7. Install argocd CLI (required for verification and cluster management)
+        if command -v argocd &>/dev/null; then
+            bake_echo_blue "i argocd CLI is already installed"
+        else
+            bake_echo_cyan "Installing argocd CLI via Homebrew..."
+            brew install argocd
+        fi
+
+        bake_echo_green "✓ All macOS dependencies checked and installed!"
+    else
+        bake_echo_red "✗ This installer currently only supports macOS (Darwin)."
+        return 1
+    fi
+}
+
+bake_task setup-ssh "Generate a secure Ed25519 SSH key for GitHub"
+function setup-ssh () {
+    local key_file="$HOME/.ssh/id_ed25519"
+
+    bake_echo_blue "=== Setting Up GitHub SSH Key ==="
+
+    if [ -f "$key_file" ]; then
+        bake_echo_yellow "i SSH key already exists at $key_file"
+    else
+        # Try to get git email, fallback to whoami@hostname
+        local email
+        email=$(git config --global user.email 2>/dev/null || echo "$(whoami)@$(hostname)")
+
+        bake_echo_cyan "Generating Ed25519 SSH key pair with comment: $email..."
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
+
+        # Generate the key (will prompt for passphrase if you want one)
+        ssh-keygen -t ed25519 -C "$email" -f "$key_file"
+    fi
+
+    # Start ssh-agent and add key
+    bake_echo_cyan "Adding key to ssh-agent..."
+    eval "$(ssh-agent -s)"
+
+    # Configure SSH config to automatically load keys and store passphrases in Keychain (macOS standard)
+    local ssh_config="$HOME/.ssh/config"
+    if [ ! -f "$ssh_config" ] || ! grep -q "UseKeychain" "$ssh_config"; then
+        bake_echo_cyan "Configuring $ssh_config for macOS Keychain integration..."
+        cat >> "$ssh_config" <<EOF
+
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile $key_file
+EOF
+        chmod 600 "$ssh_config"
+    fi
+
+    ssh-add --apple-use-keychain "$key_file"
+
+    bake_echo_green "✓ SSH key configuration completed!"
+    bake_echo_blue "=== Copy the public key below and add it to GitHub (https://github.com/settings/keys) ==="
+    cat "${key_file}.pub"
+    bake_echo_blue "=================================================================================="
 }
 
 
