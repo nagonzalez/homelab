@@ -23,3 +23,8 @@ This directory contains codified rules and preferences for AI agents working in 
   ```bash
   argocd app set <app-name> --revision main
   ```
+
+## 💻 Development & Scripting Preferences
+
+### 1. Bakefile Task Ordering
+- **Preference**: Keep task declarations and their corresponding function definitions in the `Bakefile` ordered alphabetically to ensure they are easy for humans to review and locate.
