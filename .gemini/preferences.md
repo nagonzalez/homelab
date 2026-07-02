@@ -31,3 +31,7 @@ This directory contains codified rules and preferences for AI agents working in 
 
 ### 1. Bakefile Task Ordering
 - **Preference**: Keep task declarations and their corresponding function definitions in the `Bakefile` ordered alphabetically to ensure they are easy for humans to review and locate.
+
+### 2. Idempotent Scripts and Automation
+- **Preference**: Ensure all scripts, tasks, and playbooks are written to be fully idempotent. They must verify if the target state is already met before performing modifications, exiting gracefully and reporting success if no action is required.
+
