@@ -33,6 +33,7 @@ source "vmware-iso" "macos" {
   # VM hardware specifications
   vm_name       = var.vm_name
   guest_os_type = "darwin24-64" # Darwin 24 = macOS 15 Sequoia. Change to "darwin23-64" if using VMware Fusion 13.
+  version       = 21            # Upgrade VM hardware version to prevent "New features available" compatibility popups
 
   cpus                 = 4
   memory               = 8192
@@ -60,12 +61,13 @@ source "vmware-iso" "macos" {
     "keyboardAndMouse.connectAtPowerOn" = "TRUE"
     "usb.present"                       = "TRUE"
     "usb_xhci.present"                  = "TRUE"
+    "msg.autoanswer"                    = "TRUE" # Suppress interactive dialogs/popups during build
   }
 
   # Boot Command Automation
   # The VM boots to the macOS Recovery partition on the ISO.
   # We automate selecting the language and launching Disk Utility.
-  boot_wait = "50s" # Wait for Recovery OS to boot
+  boot_wait = "45s" # Wait for Recovery OS to boot
   boot_command = [
     # 1. Select English and press Enter, then wait for the Recovery menu
     "<enter><wait15s>",
