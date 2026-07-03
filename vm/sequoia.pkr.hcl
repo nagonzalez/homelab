@@ -33,7 +33,7 @@ source "vmware-iso" "macos" {
   # VM hardware specifications
   vm_name       = var.vm_name
   guest_os_type = "darwin24-64" # Darwin 24 = macOS 15 Sequoia. Change to "darwin23-64" if using VMware Fusion 13.
-  version       = 21            # Upgrade VM hardware version to prevent "New features available" compatibility popups
+  version       = 22            # Upgrade VM hardware version to prevent "New features available" compatibility popups
 
   cpus                 = 4
   memory               = 8192
