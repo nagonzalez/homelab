@@ -1,0 +1,24 @@
+[project]
+name = "homelab"
+version = "0.1.0"
+description = "Homelab monorepo"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  # General dependencies we're ok rolling with latest versions of
+  "black",  # code formatter
+  "boto3",  # AWS SDK for Python
+  "cryptography<49.0.0",  # pinned to avoid building from source on Intel macOS
+  "p4python",  # Perforce API for Python
+  "pyyaml",  # YAML parser and emitter for Python
+  "requests",  # HTTP library
+
+  # Ansible dependencies.
+  # We pin these to specific versions to ensure consistency when running our Ansible playbooks.
+  # We value this greater than having the latest features/bugfixes.
+  "ansible~=14.1.0",  # Ansible core package
+  "ansible-core~=2.21.1",  # Ansible core engine
+  "ansible-lint~=26.6.0",  # Ansible playbook linter
+  "molecule~=26.6.0",  # Ansible testing framework
+  "molecule-plugins[docker]~=25.8.12",  # Docker plugin for Molecule
+]
