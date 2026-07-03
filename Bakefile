@@ -353,16 +353,8 @@ function setup-ansible () {
     # Ensure dependencies (like uv) are installed
     install || return 1
 
-    local venv_dir="$(bake_bakefile_dir)/.venv"
-
-    bake_echo_cyan "Installing Python via uv..."
-    uv python install || return 1
-
-    bake_echo_cyan "Creating virtual environment in $venv_dir..."
-    uv venv --allow-existing "$venv_dir" || return 1
-
-    bake_echo_cyan "Installing dependencies from requirements.txt..."
-    uv pip install --python "$venv_dir/bin/python" -r "$(bake_bakefile_dir)/requirements.txt" || return 1
+    bake_echo_cyan "Syncing Python virtual environment via uv..."
+    uv sync || return 1
 
     bake_echo_green "✓ Ansible environment bootstrapped successfully!"
     bake_echo_blue "To use Ansible, activate the virtual environment:"
