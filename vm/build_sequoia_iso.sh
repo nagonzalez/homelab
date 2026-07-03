@@ -14,8 +14,11 @@ NC='\033[0;0m' # No Color
 
 echo -e "${BLUE}=== macOS Sequoia ISO Builder ===${NC}"
 
+# Resolve directory paths dynamically relative to the script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 INSTALLER_PATH="/Applications/Install macOS Sequoia.app"
-ISO_OUTPUT_DIR="/Users/mac/Documents/homelab/vm/iso"
+ISO_OUTPUT_DIR="${SCRIPT_DIR}/iso"
 ISO_PATH="${ISO_OUTPUT_DIR}/Sequoia.iso"
 TMP_DMG="/tmp/Sequoia.dmg"
 VOLUME_NAME="Sequoia"
