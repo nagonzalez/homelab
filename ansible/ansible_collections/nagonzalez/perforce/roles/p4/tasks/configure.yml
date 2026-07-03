@@ -53,93 +53,14 @@
     mode: "0644"
   become: true
 
-- name: Configure Perforce service instance in p4dctl
-  ansible.builtin.template:
-    src: p4dctl.conf.j2
-    dest: "/etc/perforce/p4dctl.conf.d/{{ p4_server_name }}.conf"
-    owner: root
-    group: root
-    mode: "0644"
+- name: Run /opt/perforce/sbin/configure-p4d.sh
+  ansible.builtin.command: >-
+    /opt/perforce/sbin/configure-p4d.sh {{ p4_server_name }} -n
+    -p {{ p4_port }}
+    -r {{ p4_root }}
+    -u {{ p4_user }}
+    -P {{ p4_password }}
+    --case {{ p4_case }}
+  args:
+    creates: /etc/perforce/p4dctl.conf.d/{{ p4_server_name }}.conf
   become: true
-  notify: Restart perforce instance
-# - name: Check if systemd is booted
-#   ansible.builtin.stat:
-#     path: /run/systemd/system
-#   register: p4_systemd_dir
-
-# - name: Ensure helix-p4dctl systemd service is started and enabled
-#   ansible.builtin.systemd:
-#     name: helix-p4dctl
-#     state: started
-#     enabled: true
-#   become: true
-#   when: p4_systemd_dir.stat.exists
-
-# - name: Flush handlers to apply config changes immediately
-#   ansible.builtin.meta: flush_handlers
-
-# - name: Ensure specific Perforce instance is started
-#   ansible.builtin.command: "p4dctl start {{ p4_server_name }}"
-#   become: true
-#   register: p4_p4dctl_start_output
-#   changed_when: "'Starting' in p4_p4dctl_start_output.stdout"
-#   failed_when:
-#     - "p4_p4dctl_start_output.rc != 0"
-#     - "'already running' not in p4_p4dctl_start_output.stderr"
-
-# - name: Wait for Perforce server port to become active
-#   ansible.builtin.wait_for:
-#     port: "{{ p4_port | regex_replace('^ssl:', '') | int }}"
-#     timeout: 10
-#     state: started
-
-# - name: Trust Perforce server certificate (SSL only)
-#   ansible.builtin.command: "p4 -p {{ p4_port }} trust -y"
-#   become: true
-#   become_user: "{{ p4_user }}"
-#   when: "p4_port.startswith('ssl:')"
-#   changed_when: false
-#   failed_when: false
-
-# - name: Check Unicode mode status on running server
-#   ansible.builtin.command: "p4 -ztag -p {{ p4_port }} info"
-#   become: true
-#   become_user: "{{ p4_user }}"
-#   register: p4_info_check
-#   changed_when: false
-#   failed_when: false
-
-# - name: Initialize Unicode mode if requested and not yet enabled
-#   when:
-#     - "p4_unicode | bool"
-#     - "'... unicode enabled' not in p4_info_check.stdout"
-#   block:
-#     - name: Stop Perforce server instance for Unicode conversion
-#       ansible.builtin.command: "p4dctl stop {{ p4_server_name }}"
-#       become: true
-#       changed_when: true
-
-#     - name: Enable Unicode mode using p4d -xi
-#       ansible.builtin.command: "p4d -r {{ p4_root }} -xi"
-#       become: true
-#       become_user: "{{ p4_user }}"
-#       changed_when: true
-
-#     - name: Restart Perforce server instance after Unicode conversion
-#       ansible.builtin.command: "p4dctl start {{ p4_server_name }}"
-#       become: true
-#       changed_when: true
-
-#     - name: Wait for Perforce server port to become active after Unicode conversion
-#       ansible.builtin.wait_for:
-#         port: "{{ p4_port | regex_replace('^ssl:', '') | int }}"
-#         timeout: 10
-#         state: started
-
-#     - name: Re-trust Perforce server certificate (SSL only)
-#       ansible.builtin.command: "p4 -p {{ p4_port }} trust -y"
-#       become: true
-#       become_user: "{{ p4_user }}"
-#       when: "p4_port.startswith('ssl:')"
-#       changed_when: false
-#       failed_when: false

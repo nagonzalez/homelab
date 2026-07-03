@@ -11,16 +11,11 @@ p4_packages:
 
 # Default service account
 p4_user: perforce
+p4_password: GudL0ngAdminP@sswerd
 p4_group: perforce
 
 # Server settings
 p4_server_name: master
 p4_port: "1666"
-p4_args: -C1
-p4_execute_path: /opt/perforce/sbin/p4d
+p4_case: 1
 p4_root: "/opt/perforce/servers/{{ p4_server_name }}"
-p4_log: "{{ p4_root }}/log"
-p4_journal: "{{ p4_root }}/journal"
-
-# File permissions
-p4_umask: "077"
