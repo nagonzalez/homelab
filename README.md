@@ -168,3 +168,42 @@ This task will:
 * **Dashboard Access:** The secure Traefik dashboard is accessible at `https://traefik.noeg.ai/dashboard/`.
 * **ArgoCD Access:** ArgoCD is exposed at `https://argocd.noeg.ai` using Dex GitHub integration with admin rights mapped specifically to user `nagonzalez`. All other logins are restricted by default.
 * **Grafana Access:** Grafana is exposed at `https://grafana.noeg.ai` using GitHub OAuth. User `nagonzalez` is granted server-wide `GrafanaAdmin` rights, while all other users are blocked from logging in.
+
+---
+
+## 🖥️ macOS Virtualization (Testing Environment)
+
+For testing components (such as host metric collectors) within isolated guest virtual machines on Intel Mac hosts, this repository contains configurations to automate building a macOS Sequoia (macOS 15) VM using VMware Fusion and Packer.
+
+### Prerequisites
+
+1. **VMware Fusion (26H1 or later)**:
+   - VMware Fusion Pro is free for personal use.
+   - Due to Broadcom download restrictions, it cannot be fetched automatically via Homebrew and must be downloaded manually.
+   - **Download Steps**:
+     1. Register a free account on the [Broadcom Support Portal](https://support.broadcom.com/).
+     2. Search for and download **VMware Fusion Pro 26H1** (or latest 26H1+ release).
+     3. Install the downloaded DMG package into `/Applications`.
+2. **Packer**:
+   - Installed automatically on the first VM run, or manually via:
+     ```bash
+     brew tap hashicorp/tap
+     brew install hashicorp/tap/packer
+     ```
+
+### Automated Build Commands
+
+To create the VM automatically, run the following tasks:
+
+1. **Generate the Bootable macOS Sequoia ISO**:
+   ```bash
+   bake build-sequoia-iso
+   ```
+   *Note: This downloads the installer directly from Apple's servers (approx. 13GB) and creates a bootable 18GB ISO file at `vm/Sequoia.iso`. It requires admin/sudo privileges. This task is idempotent and will exit early if the ISO already exists.*
+
+2. **Compile the VM**:
+   ```bash
+   bake build-sequoia-vm
+   ```
+   *Note: This triggers Packer to spin up the VM in VMware Fusion. For detailed instructions on completing the graphical setup wizard and enabling SSH inside the guest, see [vm/README.md](vm/README.md).*
+

@@ -438,5 +438,52 @@ EOF
     bake_echo_blue "=================================================================================="
 }
 
+bake_task build-sequoia-iso "Download macOS Sequoia installer and build a bootable ISO"
+function build-sequoia-iso () {
+    bake_echo_blue "=== Building macOS Sequoia ISO ==="
+    # Call the helper script
+    "$(bake_bakefile_dir)/vm/build_sequoia_iso.sh"
+}
+
+bake_task build-sequoia-vm "Use Packer to create a macOS Sequoia VM in VMware Fusion"
+function build-sequoia-vm () {
+    bake_echo_blue "=== Building macOS Sequoia VM ==="
+    
+    # Check if VM is already built (Idempotency)
+    local vm_output_dir="$(bake_bakefile_dir)/vm/output-macos"
+    if [ -d "$vm_output_dir" ]; then
+        bake_echo_green "✓ VMware VM output directory already exists at $vm_output_dir. Nothing to do."
+        return 0
+    fi
+    
+    # Check if packer is installed
+    if ! command -v packer &>/dev/null; then
+        bake_echo_yellow "Packer not found on the host. Installing via Homebrew..."
+        brew tap hashicorp/tap
+        brew install hashicorp/tap/packer
+    fi
+
+    # Ensure the ISO exists before starting the packer build
+    local iso_file="$(bake_bakefile_dir)/vm/iso/Sequoia.iso"
+    if [ ! -f "$iso_file" ]; then
+        bake_echo_red "✗ Error: macOS Sequoia ISO not found at $iso_file."
+        bake_echo_yellow "Please run 'bake build-sequoia-iso' first."
+        return 1
+    fi
+
+    bake_echo_cyan "Starting Packer build (vmware-iso)..."
+    
+    # Save current directory, move to vm/ and build, then return
+    local current_dir=$(pwd)
+    cd "$(bake_bakefile_dir)/vm"
+    
+    # Run packer init and build
+    packer init sequoia.pkr.hcl
+    packer build sequoia.pkr.hcl
+    
+    cd "$current_dir"
+}
+
+
 
 

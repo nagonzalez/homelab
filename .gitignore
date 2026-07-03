@@ -11,3 +11,7 @@ Thumbs.db
 .venv/
 __pycache__/
 *.pyc
+
+# VMware and ISO build artifacts
+vm/output-macos/
+vm/iso/
