@@ -38,7 +38,7 @@ source "vmware-iso" "macos" {
   cpus                 = 4
   memory               = 8192
   disk_size            = 60000
-  disk_adapter_type    = "nvme"
+  disk_adapter_type    = "sata"
   network_adapter_type = "vmxnet3"
 
   # Network and SSH connection settings
@@ -53,15 +53,18 @@ source "vmware-iso" "macos" {
 
   # Crucial VMX settings for running macOS guests on Intel Macs
   vmx_data = {
-    "board-id.reflectHost"              = "FALSE"
+    "board-id.reflectHost"              = "TRUE"
     "hw.model.reflectHost"              = "FALSE"
     "serialNumber.reflectHost"          = "FALSE"
     "smc.present"                       = "TRUE"
     "firmware"                          = "efi"
     "keyboardAndMouse.connectAtPowerOn" = "TRUE"
+    "keyboardAndMouseProfile"           = "52bed056-c829-29d2-6e1e-f4320af6fd82"
     "usb.present"                       = "TRUE"
+    "ehci.present"                      = "TRUE"
     "usb_xhci.present"                  = "TRUE"
     "msg.autoanswer"                    = "TRUE" # Suppress interactive dialogs/popups during build
+    "ulm.disableMitigations"            = "TRUE" # Disable CPU mitigations for performance
   }
 
   # Boot Command Automation
@@ -70,7 +73,7 @@ source "vmware-iso" "macos" {
   boot_wait = "45s" # Wait for Recovery OS to boot
   boot_command = [
     # 1. Select English and press Enter, then wait for the Recovery menu
-    "<enter><wait15s>",
+    "<enter><wait3s>",
 
     # 2. Focus the menu bar (), navigate to "Utilities" menu (4 right arrows), open it, select "Terminal", and press Enter
     "<leftCtrlOn><f2><leftCtrlOff><wait2s>",
