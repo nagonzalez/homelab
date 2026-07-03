@@ -15,3 +15,6 @@ __pycache__/
 # VMware and ISO build artifacts
 vm/output-macos/
 vm/iso/
+
+# Ansible local temp folder
+.ansible/
