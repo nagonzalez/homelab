@@ -205,5 +205,5 @@ To create the VM automatically, run the following tasks:
    ```bash
    bake build-sequoia-vm
    ```
-   *Note: This triggers Packer to spin up the VM in VMware Fusion. For detailed instructions on completing the graphical setup wizard and enabling SSH inside the guest, see [walkthrough.md](file:///Users/mac/.gemini/antigravity-ide/brain/43d12267-62ed-4ddc-aa4b-8bda0ef33522/walkthrough.md).*
+   *Note: This triggers Packer to spin up the VM in VMware Fusion. For detailed instructions on completing the graphical setup wizard and enabling SSH inside the guest, see [vm/README.md](vm/README.md).*
 
