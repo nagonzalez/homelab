@@ -1,0 +1,37 @@
+---
+# Purpose: assert that the instance really ended up in the expected state.
+# Molecule calls this playbook with `molecule verify`.
+- name: Verify
+  hosts: instance
+  gather_facts: true
+  tasks:
+    - name: Include role defaults
+      ansible.builtin.include_vars:
+        file: ../../defaults/main.yml
+
+    - name: Check if p4dctl is installed
+      ansible.builtin.command: which p4dctl
+      changed_when: false
+
+    - name: Check if p4 CLI is installed
+      ansible.builtin.command: which p4
+      changed_when: false
+
+    - name: Get p4dctl status
+      ansible.builtin.command: p4dctl status -a
+      become: true
+      register: p4_p4dctl_status
+      changed_when: false
+
+    - name: Assert p4dctl status contains our instance name and is running
+      ansible.builtin.assert:
+        that:
+          - "p4_server_name in p4_p4dctl_status.stdout or p4_server_name in p4_p4dctl_status.stderr"
+          - "'running' in p4_p4dctl_status.stdout or 'running' in p4_p4dctl_status.stderr"
+
+    - name: Check p4 info
+      ansible.builtin.command: "p4 -ztag -p {{ p4_port }} info"
+      become: true
+      become_user: "{{ p4_user }}"
+      register: p4_info
+      changed_when: false
