@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Ensure Perforce group exists
+  ansible.builtin.group:
+    name: "{{ p4_group }}"
+    state: present
+  become: true
+
+- name: Ensure Perforce user exists
+  ansible.builtin.user:
+    name: "{{ p4_user }}"
+    group: "{{ p4_group }}"
+    state: present
+    system: true
+    home: /opt/perforce
+  become: true
+
+- name: Ensure Perforce home directory exists and has correct ownership
+  ansible.builtin.file:
+    path: /opt/perforce
+    state: directory
+    owner: "{{ p4_user }}"
+    group: "{{ p4_group }}"
+    mode: "0755"
+  become: true
+
+- name: Ensure Perforce root directory exists
+  ansible.builtin.file:
+    path: "{{ p4_root }}"
+    state: directory
+    owner: "{{ p4_user }}"
+    group: "{{ p4_group }}"
+    mode: "0700"
+  become: true
+
+- name: Ensure p4dctl configuration directory exists
+  ansible.builtin.file:
+    path: /etc/perforce/p4dctl.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Ensure main p4dctl.conf includes configuration directory
+  ansible.builtin.lineinfile:
+    path: /etc/perforce/p4dctl.conf
+    line: "include /etc/perforce/p4dctl.conf.d"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Run /opt/perforce/sbin/configure-p4d.sh
+  ansible.builtin.command: >-
+    /opt/perforce/sbin/configure-p4d.sh {{ p4_server_name }} -n
+    -p {{ p4_port }}
+    -r {{ p4_root }}
+    -u {{ p4_user }}
+    -P {{ p4_password }}
+    --case {{ p4_case }}
+  args:
+    creates: /etc/perforce/p4dctl.conf.d/{{ p4_server_name }}.conf
+  become: true

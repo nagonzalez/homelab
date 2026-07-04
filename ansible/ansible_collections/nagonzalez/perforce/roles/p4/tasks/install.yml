@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Ensure repository prerequisites are installed
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - ca-certificates
+    state: present
+    update_cache: true
+
+- name: Check if Perforce GPG key already exists
+  ansible.builtin.stat:
+    path: /usr/share/keyrings/perforce.gpg
+  register: p4_perforce_gpg_key
+
+- name: Download Perforce GPG key
+  ansible.builtin.get_url:
+    url: https://package.perforce.com/perforce.pubkey
+    dest: /tmp/perforce.pubkey
+    mode: "0644"
+  when: not p4_perforce_gpg_key.stat.exists
+
+- name: Dearmor Perforce GPG key
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /usr/share/keyrings/perforce.gpg /tmp/perforce.pubkey
+    creates: /usr/share/keyrings/perforce.gpg
+  become: true
+  when: not p4_perforce_gpg_key.stat.exists
+
+- name: Clean up temporary Perforce GPG key file
+  ansible.builtin.file:
+    path: /tmp/perforce.pubkey
+    state: absent
+  when: not p4_perforce_gpg_key.stat.exists
+
+- name: Add Perforce APT repository sources list
+  ansible.builtin.copy:
+    content: "deb [signed-by=/usr/share/keyrings/perforce.gpg] https://package.perforce.com/apt/ubuntu {{ ansible_facts['distribution_release'] }} release\n"
+    dest: /etc/apt/sources.list.d/perforce.list
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Install Perforce packages
+  ansible.builtin.apt:
+    name: "{{ p4_packages }}"
+    update_cache: true
+  become: true

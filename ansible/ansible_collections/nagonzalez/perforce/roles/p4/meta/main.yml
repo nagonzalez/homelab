@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: Noe Gonzalez
+  description: Perforce (Helix Core) server installation and configuration for Linux systems.
+
+  license: MIT
+
+  min_ansible_version: "2.21"
+
+  galaxy_tags: []
+
+dependencies: []

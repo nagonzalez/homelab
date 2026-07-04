@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT-0
+---
+# defaults file for ansible/ansible_collections/nagonzalez/perforce/roles/p4
+
+# Version of Perforce binaries to install
+p4_package_version: 2026.1-2972966
+p4_packages:
+  - "p4-server={{ p4_package_version }}~{{ ansible_facts['distribution_release'] }}"
+  - "p4-proxy={{ p4_package_version }}~{{ ansible_facts['distribution_release'] }}"
+  - "p4-broker={{ p4_package_version }}~{{ ansible_facts['distribution_release'] }}"
+
+# Default service account
+p4_user: perforce
+p4_group: perforce
+p4_password: GudL0ngAdminP@sswerd
+
+# Server settings
+p4_server_name: master
+p4_port: "1666"
+p4_case: 1
+p4_root: "/opt/perforce/servers/{{ p4_server_name }}"
