@@ -343,7 +343,10 @@ function deploy-vault () {
         return 1
     fi
 
-    kubectl wait --namespace vault --for=condition=Ready pod/vault-0 --timeout=90s || return 1
+    # Wait for the pod phase to be Running
+    kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/vault-0 --timeout=90s || return 1
+    # Give Vault server a brief moment to fully initialize the listener
+    sleep 5
 
     # 6. Initialize Vault if not already initialized
     local init_status
