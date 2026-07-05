@@ -363,9 +363,9 @@ function deploy-vault () {
         init_output=$(kubectl exec -n vault vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json)
 
         local root_token
-        root_token=$(echo "$init_output" | jq -r '.root_token')
+        root_token=$(echo "$init_output" | jq -r '.root_token' | tr -d '\r')
         local unseal_key
-        unseal_key=$(echo "$init_output" | jq -r '.unseal_keys_b64[0]')
+        unseal_key=$(echo "$init_output" | jq -r '.unseal_keys_b64[0]' | tr -d '\r')
 
         bake_echo_green "✓ Vault initialized successfully!"
         bake_echo_yellow "===================================================="
@@ -396,7 +396,7 @@ function deploy-vault () {
         if [ -f "$(bake_bakefile_dir)/.vault-keys" ]; then
             bake_echo_cyan "Unsealing Vault using stored keys..."
             local unseal_key
-            unseal_key=$(grep "UNSEAL_KEY" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2)
+            unseal_key=$(grep "UNSEAL_KEY" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2 | tr -d '\r')
             kubectl exec -n vault vault-0 -- vault operator unseal "$unseal_key"
         else
             bake_echo_yellow "⚠ Vault is sealed and no stored keys were found at .vault-keys."
@@ -411,7 +411,7 @@ function deploy-vault () {
     # 8. Configure Vault Policies and OIDC
     local root_token
     if [ -f "$(bake_bakefile_dir)/.vault-keys" ]; then
-        root_token=$(grep "ROOT_TOKEN" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2)
+        root_token=$(grep "ROOT_TOKEN" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2 | tr -d '\r')
     else
         echo -n "Please enter your Vault Root Token to configure auth: "
         read -s -r root_token
@@ -419,7 +419,7 @@ function deploy-vault () {
     fi
 
     local client_secret
-    client_secret=$(kubectl get secret vault-oauth -n argocd -o jsonpath='{.data.client-secret}' | base64 --decode)
+    client_secret=$(kubectl get secret vault-oauth -n argocd -o jsonpath='{.data.client-secret}' | base64 --decode | tr -d '\r')
 
     bake_echo_cyan "Configuring Vault admin policy..."
     kubectl exec -i -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault policy write admin - <<EOF
