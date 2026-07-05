@@ -34,8 +34,7 @@ vault:
       hosts:
         - host: vault.noeg.ai
           paths:
-            - path: /
-              pathType: ImplementationSpecific
+            - /
       tls:
         - hosts:
             - vault.noeg.ai
