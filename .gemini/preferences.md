@@ -35,3 +35,5 @@ This directory contains codified rules and preferences for AI agents working in 
 ### 2. Idempotent Scripts and Automation
 - **Preference**: Ensure all scripts, tasks, and playbooks are written to be fully idempotent. They must verify if the target state is already met before performing modifications, exiting gracefully and reporting success if no action is required.
 
+### 3. Python Code Formatting
+- **Preference**: Always format Python script files (e.g., dynamic inventory scripts) using the `black` code formatter (running via the virtual environment: `.venv/bin/black`) after making modifications to ensure code style consistency.
