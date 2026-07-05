@@ -477,5 +477,206 @@ function build-sequoia-vm () {
 }
 
 
+bake_task create-orb-machine "Create a new OrbStack Linux VM with optional configurations"
+function create-orb-machine () {
+    # Ensure orb CLI is installed
+    if ! command -v orb &>/dev/null; then
+        bake_echo_red "✗ Error: OrbStack CLI ('orb') is not installed or not in PATH."
+        bake_echo_yellow "You can install it using: brew install --cask orbstack"
+        return 1
+    fi
 
+    local vm_name=""
+    local vm_os="ubuntu:24.04"
+    local vm_cpu=""
+    local vm_memory=""
+    local vm_cloud_init=""
 
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --name requires a value."
+                    return 1
+                fi
+                vm_name="$2"
+                shift 2
+                ;;
+            --os)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --os requires a value."
+                    return 1
+                fi
+                vm_os="$2"
+                shift 2
+                ;;
+            --cpu)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --cpu requires a value."
+                    return 1
+                fi
+                vm_cpu="$2"
+                shift 2
+                ;;
+            --memory)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --memory requires a value."
+                    return 1
+                fi
+                vm_memory="$2"
+                shift 2
+                ;;
+            --cloud-init)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --cloud-init requires a value."
+                    return 1
+                fi
+                vm_cloud_init="$2"
+                shift 2
+                ;;
+            -h|--help)
+                echo "Usage: bake create-orb-machine <name> [options]"
+                echo "   or: bake create-orb-machine --name <name> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>          Name of the VM (required)"
+                echo "  --os <os>              OS distribution (default: ubuntu:24.04)"
+                echo "  --cpu <cpu>            Number of CPUs (default: no limit)"
+                echo "  --memory <memory>      Memory limit, e.g. 4G (default: no limit)"
+                echo "  --cloud-init <file>    Path to cloud-init configuration file"
+                return 0
+                ;;
+            -*)
+                bake_echo_red "✗ Error: Unknown option $1"
+                return 1
+                ;;
+            *)
+                if [ -z "$vm_name" ]; then
+                    vm_name="$1"
+                    shift
+                else
+                    bake_echo_red "✗ Error: Multiple positional names specified ($vm_name and $1)"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [ -z "$vm_name" ]; then
+        bake_echo_red "✗ Error: VM name is required."
+        echo "Usage: bake create-orb-machine <name> [options]"
+        return 1
+    fi
+
+    bake_echo_blue "=== Creating OrbStack VM: $vm_name ==="
+    bake_echo_cyan "OS:         $vm_os"
+    [ -n "$vm_cpu" ] && bake_echo_cyan "CPUs:       $vm_cpu" || bake_echo_cyan "CPUs:       No limit"
+    [ -n "$vm_memory" ] && bake_echo_cyan "Memory:     $vm_memory" || bake_echo_cyan "Memory:     No limit"
+    [ -n "$vm_cloud_init" ] && bake_echo_cyan "Cloud-init: $vm_cloud_init" || bake_echo_cyan "Cloud-init: None"
+
+    # Build the orb command
+    local cmd=("orb" "create")
+    if [ -n "$vm_cpu" ]; then
+        cmd+=("--cpus" "$vm_cpu")
+    fi
+    if [ -n "$vm_memory" ]; then
+        cmd+=("--memory" "$vm_memory")
+    fi
+    if [ -n "$vm_cloud_init" ]; then
+        if [ ! -f "$vm_cloud_init" ]; then
+            bake_echo_red "✗ Error: Cloud-init file not found at $vm_cloud_init"
+            return 1
+        fi
+        cmd+=("--user-data" "$vm_cloud_init")
+    fi
+    cmd+=("$vm_os" "$vm_name")
+
+    # Run command
+    bake_echo_cyan "Running: ${cmd[*]}"
+    "${cmd[@]}"
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        bake_echo_green "✓ VM $vm_name created successfully!"
+    else
+        bake_echo_red "✗ Failed to create VM $vm_name (exit code: $exit_code)"
+    fi
+    return $exit_code
+}
+
+bake_task delete-orb-machine "Delete an OrbStack Linux VM"
+function delete-orb-machine () {
+    # Ensure orb CLI is installed
+    if ! command -v orb &>/dev/null; then
+        bake_echo_red "✗ Error: OrbStack CLI ('orb') is not installed or not in PATH."
+        return 1
+    fi
+
+    local vm_name=""
+    local force_delete=0
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                if [ -z "$2" ]; then
+                    bake_echo_red "✗ Error: --name requires a value."
+                    return 1
+                fi
+                vm_name="$2"
+                shift 2
+                ;;
+            -f|--force)
+                force_delete=1
+                shift
+                ;;
+            -h|--help)
+                echo "Usage: bake delete-orb-machine <name> [options]"
+                echo "   or: bake delete-orb-machine --name <name> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>          Name of the VM (required)"
+                echo "  -f, --force            Force deletion without confirmation"
+                return 0
+                ;;
+            -*)
+                bake_echo_red "✗ Error: Unknown option $1"
+                return 1
+                ;;
+            *)
+                if [ -z "$vm_name" ]; then
+                    vm_name="$1"
+                    shift
+                else
+                    bake_echo_red "✗ Error: Multiple positional names specified ($vm_name and $1)"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [ -z "$vm_name" ]; then
+        bake_echo_red "✗ Error: VM name is required."
+        echo "Usage: bake delete-orb-machine <name> [options]"
+        return 1
+    fi
+
+    # Build the orb command
+    local cmd=("orb" "delete")
+    if [ $force_delete -eq 1 ]; then
+        cmd+=("-f")
+    fi
+    cmd+=("$vm_name")
+
+    # Run command
+    bake_echo_blue "=== Deleting OrbStack VM: $vm_name ==="
+    bake_echo_cyan "Running: ${cmd[*]}"
+    "${cmd[@]}"
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        bake_echo_green "✓ VM $vm_name deleted successfully!"
+    else
+        bake_echo_red "✗ Failed to delete VM $vm_name (exit code: $exit_code)"
+    fi
+    return $exit_code
+}
