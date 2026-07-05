@@ -20,7 +20,7 @@ def get_orb_machines():
             check=True,
         )
         return json.loads(result.stdout)
-    except subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError:
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
         return []
 
 
