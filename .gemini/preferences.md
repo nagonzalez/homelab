@@ -37,3 +37,7 @@ This directory contains codified rules and preferences for AI agents working in 
 
 ### 3. Python Code Formatting
 - **Preference**: Always format Python script files (e.g., dynamic inventory scripts) using the `black` code formatter (running via the virtual environment: `.venv/bin/black`) after making modifications to ensure code style consistency.
+
+### 4. Ansible and YAML Linting
+- **Preference**: Always run `ansible-lint` (using the virtual environment: `.venv/bin/ansible-lint`) whenever creating or modifying YAML files to ensure compliance with best practices and configuration standards.
+
