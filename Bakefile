@@ -320,6 +320,14 @@ function deploy-vault () {
     bake_echo_cyan "Applying Vault ArgoCD Application..."
     kubectl apply -f "$(bake_bakefile_dir)/argocd/apps/vault.yaml"
 
+    # If we are on a feature branch, patch ArgoCD Application to track this branch
+    local current_branch
+    current_branch=$(git -C "$(bake_bakefile_dir)" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    if [ "$current_branch" != "main" ] && [ -n "$current_branch" ]; then
+        bake_echo_cyan "Local branch is '$current_branch'. Patching ArgoCD Application to track this branch..."
+        kubectl patch application vault -n argocd --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/source/targetRevision\", \"value\": \"$current_branch\"}]"
+    fi
+
     # 5. Wait for the vault-0 pod to start and become ready
     bake_echo_cyan "Waiting for Vault pod vault-0 to be ready..."
     local pod_exists=0
