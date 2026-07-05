@@ -439,11 +439,19 @@ EOF"
         default_role=\"admin\""
 
     bake_echo_cyan "Configuring Vault admin OIDC role..."
-    kubectl exec -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault write auth/oidc/role/admin \
-        allowed_redirect_uris=\"https://vault.noeg.ai/ui/vault/auth/oidc/oidc/callback,http://localhost:8250/oidc/callback\" \
-        user_claim=\"preferred_username\" \
-        policies=\"admin\" \
-        bound_claims='{\"preferred_username\": \"nagonzalez\"}'"
+    kubectl exec -i -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault write auth/oidc/role/admin -" <<EOF
+{
+  "allowed_redirect_uris": [
+    "https://vault.noeg.ai/ui/vault/auth/oidc/oidc/callback",
+    "http://localhost:8250/oidc/callback"
+  ],
+  "user_claim": "preferred_username",
+  "policies": ["admin"],
+  "bound_claims": {
+    "preferred_username": ["nagonzalez"]
+  }
+}
+EOF
 
     bake_echo_green "✓ HashiCorp Vault deployed and OIDC configured successfully!"
     bake_echo_blue "Access your Vault UI at: https://vault.noeg.ai"
