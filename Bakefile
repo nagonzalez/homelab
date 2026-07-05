@@ -447,6 +447,10 @@ EOF"
   ],
   "user_claim": "preferred_username",
   "policies": ["admin"],
+  "oidc_scopes": [
+    "profile",
+    "email"
+  ],
   "bound_claims": {
     "preferred_username": ["nagonzalez"]
   }
