@@ -17,6 +17,14 @@ configs:
           config:
             clientID: $argocd-github-oauth:client-id
             clientSecret: $argocd-github-oauth:client-secret
+      staticClients:
+        - id: vault
+          name: HashiCorp Vault
+          redirectURIs:
+            - https://vault.noeg.ai/ui/vault/auth/oidc/oidc/callback
+            - http://localhost:8250/oidc/callback
+          secret: $vault-oauth:client-secret
+
 
   # RBAC configuration (argocd-rbac-cm)
   rbac:

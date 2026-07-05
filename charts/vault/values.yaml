@@ -1,0 +1,41 @@
+# Vault Helm Wrapper Chart Configuration
+# Values are nested under the 'vault' key to target the sub-chart dependency.
+
+vault:
+  ui:
+    enabled: true
+
+  server:
+    # Enable standalone mode and configure storage backend
+    standalone:
+      enabled: true
+      config: |
+        ui = true
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+        storage "file" {
+          path = "/vault/data"
+        }
+
+    # Configure persistent storage for the file backend
+    dataStorage:
+      enabled: true
+      size: 2Gi
+      mountPath: "/vault/data"
+      accessMode: ReadWriteOnce
+
+    # Configure Traefik Ingress to expose the Vault UI/API
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hosts:
+        - host: vault.noeg.ai
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls:
+        - hosts:
+            - vault.noeg.ai
