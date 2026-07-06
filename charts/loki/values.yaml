@@ -1,0 +1,62 @@
+# Loki Helm Wrapper Chart Configuration
+# Values are nested under the 'loki' key to target the sub-chart dependency.
+
+loki:
+  deploymentMode: Monolithic
+
+  loki:
+    schemaConfig:
+      configs:
+        - from: 2024-04-01
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+
+  # Disable other components to avoid validation errors
+  backend:
+    replicas: 0
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  ingester:
+    replicas: 0
+  querier:
+    replicas: 0
+  queryFrontend:
+    replicas: 0
+  queryScheduler:
+    replicas: 0
+  distributor:
+    replicas: 0
+  compactor:
+    replicas: 0
+  indexGateway:
+    replicas: 0
+
+  gateway:
+    enabled: true
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      hosts:
+        - host: loki.noeg.ai
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - hosts:
+            - loki.noeg.ai
