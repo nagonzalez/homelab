@@ -273,6 +273,195 @@ function deploy-traefik () {
     bake_echo_green "✓ Traefik deployed and TLSStore configured successfully!"
 }
 
+bake_task deploy-vault "Deploy HashiCorp Vault via ArgoCD and configure OIDC authentication"
+function deploy-vault () {
+    bake_echo_blue "=== Deploying HashiCorp Vault via ArgoCD ==="
+
+    # Ensure dependencies are installed
+    install || return 1
+
+    # 1. Create namespaces if they don't exist
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace vault --dry-run=client -o yaml | kubectl apply -f -
+
+    # 2. Check if Vault OAuth credentials secret exists in argocd namespace
+    local secret_exists=0
+    if kubectl get secret vault-oauth -n argocd &>/dev/null; then
+        secret_exists=1
+    fi
+
+    if [ "$secret_exists" -eq 0 ]; then
+        bake_echo_cyan "Generating new Vault OAuth client secret..."
+        local vault_client_secret
+        vault_client_secret=$(openssl rand -hex 20)
+
+        # Create vault-oauth secret in argocd namespace
+        kubectl create secret generic vault-oauth \
+          --namespace argocd \
+          --from-literal=client-secret="$vault_client_secret" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        kubectl label secret vault-oauth app.kubernetes.io/part-of=argocd -n argocd --overwrite
+
+        # Create vault-oauth secret in vault namespace for reference
+        kubectl create secret generic vault-oauth \
+          --namespace vault \
+          --from-literal=client-secret="$vault_client_secret" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        kubectl label secret vault-oauth app.kubernetes.io/part-of=vault -n vault --overwrite
+    else
+        bake_echo_blue "i Using existing Vault OAuth client secret from secret 'vault-oauth'"
+    fi
+
+    # 3. Apply ArgoCD values and restart Dex server to pick up static client
+    bake_echo_cyan "Applying Dex configuration changes to ArgoCD..."
+    deploy-argocd || return 1
+
+    # 4. Apply the Vault ArgoCD Application manifest
+    bake_echo_cyan "Applying Vault ArgoCD Application..."
+    kubectl apply -f "$(bake_bakefile_dir)/argocd/apps/vault.yaml"
+
+    # If we are on a feature branch, patch ArgoCD Application to track this branch
+    local current_branch
+    current_branch=$(git -C "$(bake_bakefile_dir)" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    if [ "$current_branch" != "main" ] && [ -n "$current_branch" ]; then
+        bake_echo_cyan "Local branch is '$current_branch'. Patching ArgoCD Application to track this branch..."
+        kubectl patch application vault -n argocd --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/source/targetRevision\", \"value\": \"$current_branch\"}]"
+    fi
+
+    # 5. Wait for the vault-0 pod to start and become ready
+    bake_echo_cyan "Waiting for Vault pod vault-0 to be ready..."
+    local pod_exists=0
+    for i in {1..30}; do
+        if kubectl get pod vault-0 -n vault &>/dev/null; then
+            pod_exists=1
+            break
+        fi
+        sleep 2
+    done
+    if [ "$pod_exists" -eq 0 ]; then
+        bake_echo_red "✗ Error: vault-0 pod did not start in time."
+        return 1
+    fi
+
+    # Wait for the pod phase to be Running
+    kubectl wait --namespace vault --for=jsonpath='{.status.phase}'=Running pod/vault-0 --timeout=90s || return 1
+    # Give Vault server a brief moment to fully initialize the listener
+    sleep 5
+
+    # 6. Initialize Vault if not already initialized
+    local status_json
+    status_json=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null || true)
+
+    local init_status="false"
+    if [ -n "$status_json" ]; then
+        init_status=$(echo "$status_json" | jq -r '.initialized' 2>/dev/null || echo "false")
+    fi
+
+    if [ "$init_status" = "false" ]; then
+        bake_echo_cyan "Initializing Vault (1 key share, 1 key threshold)..."
+        local init_output
+        init_output=$(kubectl exec -n vault vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json)
+
+        local root_token
+        root_token=$(echo "$init_output" | jq -r '.root_token' | tr -d '\r')
+        local unseal_key
+        unseal_key=$(echo "$init_output" | jq -r '.unseal_keys_b64[0]' | tr -d '\r')
+
+        bake_echo_green "✓ Vault initialized successfully!"
+        bake_echo_yellow "===================================================="
+        bake_echo_yellow "Vault Root Token: $root_token"
+        bake_echo_yellow "Vault Unseal Key: $unseal_key"
+        bake_echo_yellow "===================================================="
+
+        # Save keys locally to .vault-keys
+        echo "ROOT_TOKEN=$root_token" > "$(bake_bakefile_dir)/.vault-keys"
+        echo "UNSEAL_KEY=$unseal_key" >> "$(bake_bakefile_dir)/.vault-keys"
+        chmod 600 "$(bake_bakefile_dir)/.vault-keys"
+
+        # Ensure .vault-keys is in gitignore
+        if ! grep -q "\.vault-keys" "$(bake_bakefile_dir)/.gitignore"; then
+            echo ".vault-keys" >> "$(bake_bakefile_dir)/.gitignore"
+        fi
+    else
+        bake_echo_blue "i Vault is already initialized."
+    fi
+
+    # 7. Unseal Vault if sealed
+    status_json=$(kubectl exec -n vault vault-0 -- vault status -format=json 2>/dev/null || true)
+    local sealed_status="true"
+    if [ -n "$status_json" ]; then
+        sealed_status=$(echo "$status_json" | jq -r '.sealed' 2>/dev/null || echo "true")
+    fi
+    if [ "$sealed_status" = "true" ]; then
+        if [ -f "$(bake_bakefile_dir)/.vault-keys" ]; then
+            bake_echo_cyan "Unsealing Vault using stored keys..."
+            local unseal_key
+            unseal_key=$(grep "UNSEAL_KEY" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2 | tr -d '\r')
+            kubectl exec -n vault vault-0 -- vault operator unseal "$unseal_key"
+        else
+            bake_echo_yellow "⚠ Vault is sealed and no stored keys were found at .vault-keys."
+            bake_echo_yellow "Please unseal Vault manually by running:"
+            bake_echo_yellow "  kubectl exec -it -n vault vault-0 -- vault operator unseal"
+            return 1
+        fi
+    else
+        bake_echo_blue "i Vault is already unsealed."
+    fi
+
+    # 8. Configure Vault Policies and OIDC
+    local root_token
+    if [ -f "$(bake_bakefile_dir)/.vault-keys" ]; then
+        root_token=$(grep "ROOT_TOKEN" "$(bake_bakefile_dir)/.vault-keys" | cut -d'=' -f2 | tr -d '\r')
+    else
+        echo -n "Please enter your Vault Root Token to configure auth: "
+        read -s -r root_token
+        echo ""
+    fi
+
+    local client_secret
+    client_secret=$(kubectl get secret vault-oauth -n argocd -o jsonpath='{.data.client-secret}' | base64 --decode | tr -d '\r')
+
+    bake_echo_cyan "Configuring Vault admin policy..."
+    kubectl exec -i -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault policy write admin - <<EOF
+path \"*\" {
+  capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\"]
+}
+EOF"
+
+    bake_echo_cyan "Enabling Vault OIDC auth method..."
+    kubectl exec -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault auth enable oidc" 2>/dev/null || true
+
+    bake_echo_cyan "Configuring OIDC provider with Dex URL..."
+    kubectl exec -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault write auth/oidc/config \
+        oidc_discovery_url=\"https://argocd.noeg.ai/api/dex\" \
+        oidc_client_id=\"vault\" \
+        oidc_client_secret=\"$client_secret\" \
+        default_role=\"admin\""
+
+    bake_echo_cyan "Configuring Vault admin OIDC role..."
+    kubectl exec -i -n vault vault-0 -- sh -c "VAULT_TOKEN=$root_token vault write auth/oidc/role/admin -" <<EOF
+{
+  "allowed_redirect_uris": [
+    "https://vault.noeg.ai/ui/vault/auth/oidc/oidc/callback",
+    "http://localhost:8250/oidc/callback"
+  ],
+  "user_claim": "preferred_username",
+  "policies": ["admin"],
+  "oidc_scopes": [
+    "profile",
+    "email"
+  ],
+  "bound_claims": {
+    "preferred_username": ["nagonzalez"]
+  }
+}
+EOF
+
+    bake_echo_green "✓ HashiCorp Vault deployed and OIDC configured successfully!"
+    bake_echo_blue "Access your Vault UI at: https://vault.noeg.ai"
+    bake_echo_yellow "Note: OIDC login is enabled and restricted strictly to user 'nagonzalez'."
+}
+
 bake_task install "Detect OS and install homelab dependencies (starting with OrbStack)"
 function install () {
     bake_echo_blue "=== Starting Homelab Dependency Installation ==="
@@ -337,6 +526,14 @@ function install () {
         else
             bake_echo_cyan "Installing uv via Homebrew..."
             brew install uv
+        fi
+
+        # 9. Install jq (required for JSON processing in deployment tasks)
+        if command -v jq &>/dev/null; then
+            bake_echo_blue "i jq is already installed"
+        else
+            bake_echo_cyan "Installing jq via Homebrew..."
+            brew install jq
         fi
 
         bake_echo_green "✓ All macOS dependencies checked and installed!"
