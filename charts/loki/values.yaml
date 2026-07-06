@@ -48,6 +48,10 @@ loki:
   indexGateway:
     replicas: 0
 
+  memberlist:
+    service:
+      publishNotReadyAddresses: true
+
   gateway:
     enabled: true
     ingress:
