@@ -239,7 +239,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", service_name=~\"$service_name\", instance=~\"$instance\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (service_name)",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (service_name)",
                     "legendFormat": "{{service_name}}",
                     "queryType": "range",
                     "refId": "A"
@@ -340,7 +340,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(rate(({container_name=~\"$container_name\", instance=~\"$instance\", service_name=~\"$service_name\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[30s])) by (service_name)",
+                    "expr": "sum(rate(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[30s])) by (service_name)",
                     "hide": false,
                     "legendFormat": "{{service_name}}",
                     "queryType": "range",
@@ -395,7 +395,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "{container_name=~\"$container_name\", service_name=~\"$service_name\", instance=~\"$instance\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\"",
+                    "expr": "{container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\"",
                     "hide": false,
                     "queryType": "range",
                     "refId": "A"
@@ -477,7 +477,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", instance=~\"$instance\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
                     "hide": false,
                     "queryType": "range",
                     "refId": "A"
@@ -581,7 +581,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
                     "hide": false,
                     "legendFormat": "{{pod}}",
                     "queryType": "range",
@@ -686,7 +686,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
                     "legendFormat": "{{service_name}}",
                     "queryType": "range",
                     "refId": "A"
@@ -768,7 +768,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", instance=~\"$instance\", service_name=~\"$service_name\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
                     "hide": false,
                     "queryType": "range",
                     "refId": "A"
@@ -872,7 +872,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", service_name=~\"$service_name\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
                     "hide": false,
                     "legendFormat": "{{pod}}",
                     "queryType": "range",
@@ -977,7 +977,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", service_name=~\"$service_name\", instance=~\"$instance\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) by (pod)",
                     "legendFormat": "{{service_name}}",
                     "queryType": "range",
                     "refId": "A"
@@ -1059,7 +1059,7 @@ grafana:
                     },
                     "direction": "backward",
                     "editorMode": "code",
-                    "expr": "sum(count_over_time(({container_name=~\"$container_name\", instance=~\"$instance\", service_name=~\"$service_name\"} |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) * 100 / sum(count_over_time(({container_name=~\"$container_name\", instance=~\"$instance\", service_name=~\"$service_name\"} !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
+                    "expr": "sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" |~ \"(?i)$searchable_pattern\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval])) * 100 / sum(count_over_time(({container=~\"$container\", service_name=~\"$service_name\"} | pod=~\"$pod\" !~ \"(?i)$[[service_name]]_exclude\")[$__interval]))",
                     "hide": false,
                     "queryType": "range",
                     "refId": "A"
@@ -1081,12 +1081,12 @@ grafana:
                     "type": "loki",
                     "uid": "Loki"
                   },
-                  "definition": "label_values({container_name=~\".+\"}, container_name)",
+                  "definition": "label_values({container=~\".+\"}, container_name)",
                   "includeAll": true,
                   "label": "Container",
                   "name": "container",
                   "options": [],
-                  "query": "label_values({container_name=~\".+\"}, container_name)",
+                  "query": "label_values({container=~\".+\"}, container_name)",
                   "refresh": 2,
                   "regex": "",
                   "type": "query"
@@ -1097,12 +1097,12 @@ grafana:
                     "type": "loki",
                     "uid": "Loki"
                   },
-                  "definition": "label_values({container_name=~\"$container_name\"}, service_name)",
+                  "definition": "label_values({container=~\"$container\"}, service_name)",
                   "includeAll": true,
                   "label": "Service",
                   "name": "service_name",
                   "options": [],
-                  "query": "label_values({container_name=~\"$container_name\"}, service_name)",
+                  "query": "label_values({container=~\"$container\"}, service_name)",
                   "refresh": 2,
                   "regex": "",
                   "type": "query"
@@ -1113,12 +1113,12 @@ grafana:
                     "type": "loki",
                     "uid": "Loki"
                   },
-                  "definition": "label_values({container_name=~\"$container_name\"}, instance)",
+                  "definition": "label_values({container=~\"$container\"}, instance)",
                   "includeAll": true,
                   "label": "Instance",
                   "name": "pod",
                   "options": [],
-                  "query": "label_values({container_name=~\"$container_name\"}, instance)",
+                  "query": "label_values({container=~\"$container\"}, instance)",
                   "refresh": 2,
                   "regex": "",
                   "type": "query"
@@ -1322,7 +1322,7 @@ grafana:
                 "steppedLine": false,
                 "targets": [
                   {
-                    "expr": "sum(count_over_time({namespace=\"$namespace\", pod=~\"$pod\"} |~ \"$search\"[$__interval]))",
+                    "expr": "sum(count_over_time({namespace=\"$namespace\"} | pod=~\"$pod\" |~ \"$search\"[$__interval]))",
                     "refId": "A"
                   }
                 ],
@@ -1391,7 +1391,7 @@ grafana:
                 },
                 "targets": [
                   {
-                    "expr": "{namespace=\"$namespace\", pod=~\"$pod\"} |~ \"$search\"",
+                    "expr": "{namespace=\"$namespace\"} | pod=~\"$pod\" |~ \"$search\"",
                     "refId": "A"
                   }
                 ],
