@@ -79,6 +79,5 @@ grafana:
         revision: 1
         datasource: Loki
       loki-self-monitoring:
-        gnetId: 19796
-        revision: 1
-        datasource: Prometheus
+        file: dashboards/loki-self-monitoring.json
+
