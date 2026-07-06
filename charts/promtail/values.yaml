@@ -5,6 +5,9 @@ promtail:
     snippets:
       pipelineStages:
         - cri: {}
+        - regex:
+            source: filename
+            expression: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/.*\.log$'
         - structured_metadata:
             pod: pod
             filename: filename
