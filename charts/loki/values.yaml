@@ -19,6 +19,11 @@ loki:
       replication_factor: 1
     storage:
       type: filesystem
+    limits_config:
+      retention_period: 30d
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
 
   singleBinary:
     replicas: 1
