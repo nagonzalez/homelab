@@ -49,7 +49,7 @@ grafana:
         - name: Loki
           type: loki
           access: proxy
-          url: http://loki-loki-gateway.monitoring.svc.cluster.local
+          url: http://loki-gateway.monitoring.svc.cluster.local
 
   dashboardProviders:
     dashboardproviders.yaml:
