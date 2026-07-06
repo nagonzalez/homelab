@@ -11,6 +11,4 @@ promtail:
         - structured_metadata:
             pod: pod
             filename: filename
-        - labeldrop:
-            - pod
-            - filename
+        - labeldrop: [pod, filename]
