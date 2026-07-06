@@ -74,3 +74,11 @@ grafana:
         gnetId: 17347
         revision: 9
         datasource: Prometheus
+      loki-logs:
+        gnetId: 24574
+        revision: 1
+        datasource: Loki
+      loki-self-monitoring:
+        gnetId: 19796
+        revision: 1
+        datasource: Prometheus
