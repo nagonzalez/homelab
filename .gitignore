@@ -22,3 +22,8 @@ vm/iso/
 # Local Vault keys
 .vault-keys
 
+# Helm chart dependencies
+charts/*/charts/
+charts/*/tmpcharts/
+
+

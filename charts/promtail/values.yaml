@@ -1,0 +1,14 @@
+promtail:
+  config:
+    clients:
+      - url: http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+        - regex:
+            source: filename
+            expression: '^/var/log/pods/(?P<namespace>[^_/]+)_(?P<pod>.+?)_(?P<uid>[^_/]+)/(?P<container>[^/]+)/.*\.log$'
+        - structured_metadata:
+            pod: pod
+            filename: filename
+        - labeldrop: [pod, filename]
