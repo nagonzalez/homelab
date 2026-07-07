@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: otel-collector-gateway
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`otel-collector.noeg.ai`)
+      services:
+        - name: otel-collector-opentelemetry-collector
+          port: 4318
+  tls: {}

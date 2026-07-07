@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: Noe Gonzalez
+  description: Configure native Perforce log shipping to Loki via OTLP.
+
+  license: MIT
+
+  min_ansible_version: "2.21"
+
+  galaxy_tags: []
+
+dependencies: []

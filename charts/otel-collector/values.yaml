@@ -1,0 +1,61 @@
+# OpenTelemetry Collector Wrapper Chart Configuration
+# Values are nested under the 'opentelemetry-collector' key to target the sub-chart dependency.
+
+opentelemetry-collector:
+  mode: deployment
+  replicaCount: 1
+
+  # Expose OTLP HTTP and gRPC ports
+  ports:
+    otlp:
+      enabled: false
+    otlp-http:
+      enabled: true
+      containerPort: 4318
+      servicePort: 4318
+      protocol: TCP
+    otlp-grpc:
+      enabled: true
+      containerPort: 4317
+      servicePort: 4317
+      protocol: TCP
+
+  # Collector configuration pipeline
+  config:
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+          grpc:
+            endpoint: 0.0.0.0:4317
+
+    processors:
+      batch: {}
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
+
+      transform:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            statements:
+              # Parse the JSON log body if it is a string
+              - set(body, ParseJSON(body)) where IsString(body)
+              # Set the log timestamp to the exact Perforce event timestamp
+              - set(time_unix_nano, Int(body["f_timestamp"]) * 1000000000 + Int(body["f_timestamp2"])) where body["f_timestamp"] != nil and body["f_timestamp2"] != nil
+
+    exporters:
+      otlphttp:
+        endpoint: http://loki-gateway.monitoring.svc.cluster.local/otlp
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, transform, batch]
+          exporters: [otlphttp]

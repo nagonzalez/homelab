@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT-0
+---
+# handlers file for nagonzalez.monitoring.loki
+
+- name: Restart Perforce
+  ansible.builtin.systemd:
+    name: p4dctl
+    state: restarted
+  become: true
