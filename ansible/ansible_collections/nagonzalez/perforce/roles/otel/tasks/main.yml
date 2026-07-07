@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for nagonzalez.perforce.otel
+
+- name: Query current Perforce configurations
+  ansible.builtin.shell: >-
+    set -o pipefail &&
+    echo "{{ otel_p4_password }}" | p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} login &&
+    p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} configure show
+  args:
+    executable: /bin/bash
+  register: otel_p4_config_show_raw
+  changed_when: false
+  become: true
+  become_user: "{{ otel_p4_user }}"
+  no_log: true
+
+- name: Set Perforce logexport startup commands
+  ansible.builtin.shell: >-
+    set -o pipefail &&
+    echo "{{ otel_p4_password }}" | p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} login &&
+    p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} configure set startup.{{ log_index + 1 }}="logexport -I 1000 -e {{ otel_push_url }} {{ item }}"
+  args:
+    executable: /bin/bash
+  loop: "{{ otel_p4_logs }}"
+  loop_control:
+    index_var: log_index
+  # Only run if the exact startup command is not already configured
+  when: >
+    ("startup." ~ (log_index + 1) ~ "=logexport -I 1000 -e " ~ otel_push_url ~ " " ~ item) not in otel_p4_config_show_raw.stdout
+  register: otel_p4_config_set_result
+  changed_when: true
+  notify: Restart Perforce
+  become: true
+  become_user: "{{ otel_p4_user }}"
+  no_log: true

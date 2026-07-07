@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: MIT-0
 ---
-# defaults file for nagonzalez.monitoring.loki
+# defaults file for nagonzalez.perforce.otel
 
-# The Loki OTLP logs endpoint URL
-loki_push_url: "https://otel-collector.noeg.ai/v1/logs"
+# The Loki / OTel Collector endpoint URL
+otel_push_url: "https://otel-collector.noeg.ai/v1/logs"
 
 # Perforce Server parameters
-loki_p4_port: "1666"
-loki_p4_user: "perforce"
-loki_p4_password: "GudL0ngAdminP@sswerd"
+otel_p4_port: "1666"
+otel_p4_user: "perforce"
+otel_p4_password: "GudL0ngAdminP@sswerd"
 
 # List of Perforce structured CSV log paths to export (relative to P4ROOT)
-loki_p4_logs:
+otel_p4_logs:
   - "../logs/commands.csv"
   - "../logs/errors.csv"
   - "../logs/events.csv"

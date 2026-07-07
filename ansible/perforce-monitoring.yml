@@ -7,4 +7,4 @@
   become: true
   gather_facts: true
   roles:
-    - role: nagonzalez.monitoring.loki
+    - role: nagonzalez.perforce.otel
