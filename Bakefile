@@ -276,6 +276,32 @@ function deploy-promtail () {
     echo ""
 }
 
+bake_task deploy-otel-collector "Deploy OpenTelemetry Collector log gateway via ArgoCD"
+function deploy-otel-collector () {
+    bake_echo_blue "=== Deploying OpenTelemetry Collector via ArgoCD ==="
+
+    # Ensure dependencies are installed
+    install || return 1
+
+    # Create monitoring namespace if it doesn't exist
+    kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    # Apply the ArgoCD Application manifest for OTel Collector
+    bake_echo_cyan "Applying OTel Collector ArgoCD Application..."
+    kubectl apply -f "$(bake_bakefile_dir)/argocd/apps/otel-collector.yaml"
+
+    # If we are on a feature branch, patch ArgoCD Application to track this branch
+    local current_branch
+    current_branch=$(git -C "$(bake_bakefile_dir)" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    if [ "$current_branch" != "main" ] && [ -n "$current_branch" ]; then
+        bake_echo_cyan "Local branch is '$current_branch'. Patching ArgoCD Application to track this branch..."
+        kubectl patch application otel-collector -n argocd --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/source/targetRevision\", \"value\": \"$current_branch\"}]"
+    fi
+
+    bake_echo_green "✓ OTel Collector deployment initiated successfully via ArgoCD!"
+    echo ""
+}
+
 bake_task deploy-traefik "Deploy Traefik Ingress with Cloudflare DNS-01 challenge"
 function deploy-traefik () {
     bake_echo_blue "=== Deploying Traefik Ingress ==="

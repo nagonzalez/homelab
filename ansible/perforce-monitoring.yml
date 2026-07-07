@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT-0
+---
+# playbook for perforce log shipping to loki
+
+- name: Configure native Perforce log shipping to Loki
+  hosts: perforce-commit
+  become: true
+  gather_facts: true
+  roles:
+    - role: nagonzalez.perforce.otel

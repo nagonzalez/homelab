@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT-0
+---
+# handlers file for nagonzalez.perforce.otel
+
+- name: Restart Perforce
+  ansible.builtin.service:
+    name: p4dctl
+    state: restarted
+  become: true
