@@ -4,6 +4,8 @@
 opentelemetry-collector:
   mode: deployment
   replicaCount: 1
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
 
   # Expose OTLP HTTP and gRPC ports
   ports:
