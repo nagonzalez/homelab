@@ -3,7 +3,7 @@
 # defaults file for nagonzalez.monitoring.loki
 
 # The Loki OTLP logs endpoint URL
-loki_push_url: "https://loki.noeg.ai/otlp/v1/logs"
+loki_push_url: "https://otel-collector.noeg.ai/v1/logs"
 
 # Perforce Server parameters
 loki_p4_port: "1666"
