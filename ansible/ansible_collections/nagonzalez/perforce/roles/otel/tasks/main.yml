@@ -15,6 +15,26 @@
   become_user: "{{ otel_p4_user }}"
   no_log: true
 
+- name: Configure Perforce structured log files
+  ansible.builtin.shell: >-
+    set -o pipefail &&
+    echo "{{ otel_p4_password }}" | p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} login &&
+    p4 -p {{ otel_p4_port }} -u {{ otel_p4_user }} configure set serverlog.file.{{ log_index + 1 }}="{{ item }}"
+  args:
+    executable: /bin/bash
+  loop: "{{ otel_p4_logs }}"
+  loop_control:
+    index_var: log_index
+  # Only run if the exact serverlog.file configuration is not already configured
+  when: >
+    ("serverlog.file." ~ (log_index + 1) ~ " = " ~ item) not in otel_p4_config_show_raw.stdout
+  register: otel_p4_serverlog_set_result
+  changed_when: true
+  notify: Restart Perforce
+  become: true
+  become_user: "{{ otel_p4_user }}"
+  no_log: true
+
 - name: Set Perforce logexport startup commands
   ansible.builtin.shell: >-
     set -o pipefail &&
