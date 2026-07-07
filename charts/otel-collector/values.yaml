@@ -46,8 +46,9 @@ opentelemetry-collector:
             statements:
               # Parse the JSON log body if it is a string
               - set(body, ParseJSON(body)) where IsString(body)
-              # Set the log timestamp to the exact Perforce event timestamp
-              - set(time_unix_nano, Int(body["f_timestamp"]) * 1000000000 + Int(body["f_timestamp2"])) where body["f_timestamp"] != nil and body["f_timestamp2"] != nil
+              - >-
+                set(time_unix_nano, Int(body["f_timestamp"]) * 1000000000 + Int(body["f_timestamp2"]))
+                where body["f_timestamp"] != nil and body["f_timestamp2"] != nil
 
     exporters:
       otlphttp:
