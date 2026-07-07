@@ -9,6 +9,7 @@ otel_push_url: "https://otel-collector.noeg.ai/v1/logs"
 otel_p4_port: "1666"
 otel_p4_user: "perforce"
 otel_p4_password: "GudL0ngAdminP@sswerd"
+otel_p4_log_retain: 10
 
 # List of Perforce structured CSV log paths to export (relative to P4ROOT)
 otel_p4_logs:
